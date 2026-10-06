@@ -112,9 +112,16 @@ func cmdDoctor(args []string) error {
 		add("claude works", bounded(func(ctx context.Context) error {
 			return version(ctx, r, cfg.Paths.Claude, "--version")
 		}), cfg.Paths.Claude)
-		add("gh authenticated", bounded(func(ctx context.Context) error {
-			return ghAuth(ctx, r, cfg.Paths.GH)
-		}), cfg.Paths.GH)
+		// The login is read after the check has run, for the same reason
+		// scopeDetail is below: Go does not order a plain variable read
+		// against a function call in the same argument list.
+		var login string
+		aerr := bounded(func(ctx context.Context) error {
+			var err error
+			login, err = ghAuth(ctx, r, cfg.Paths.GH)
+			return err
+		})
+		add("gh authenticated", aerr, loginDetail(login, cfg.Paths.GH))
 
 		// Authenticated is not the same as allowed to write. `gh pr review`
 		// is the first writing gh command the service runs, and a token that
@@ -324,15 +331,33 @@ func oauthScopes(out []byte) ([]string, bool) {
 	return nil, false
 }
 
-func ghAuth(ctx context.Context, r runner.Runner, gh string) error {
-	res, err := r.Run(ctx, "", gh, "auth", "status")
+// ghAuth reports whether gh can act as somebody on GitHub, by asking it to.
+//
+// `gh api user`, not `gh auth status`. Status reports on every account gh has
+// stored and exits non-zero if ANY of them fails to log in -- including a
+// stale credential nothing uses. On this operator's machine that produced a
+// red check beside a green one in the same run: "gh authenticated" failed on a
+// dead second account while "gh can submit reviews" passed on the live token,
+// which tells an operator nothing except that the checks disagree.
+//
+// The question worth asking is the one the service depends on: does a GitHub
+// call made the way the service makes them come back. So it makes one, and
+// names the account it came back as -- which is also the thing the operator
+// most needs to see, since reviews are posted under that identity.
+func ghAuth(ctx context.Context, r runner.Runner, gh string) (string, error) {
+	res, err := r.Run(ctx, "", gh, "api", "user", "-q", ".login")
 	if err != nil {
-		return err
+		return "", err
 	}
 	if res.ExitCode != 0 {
-		return fmt.Errorf("gh auth status exit %d: run `gh auth login`", res.ExitCode)
+		return "", fmt.Errorf("gh api user exit %d: %s (run `gh auth login`)",
+			res.ExitCode, strings.TrimSpace(string(res.Stderr)))
 	}
-	return nil
+	login := strings.TrimSpace(string(res.Stdout))
+	if login == "" {
+		return "", fmt.Errorf("gh answered without naming an account; run `gh auth status`")
+	}
+	return login, nil
 }
 
 // checkSource runs a source's real query and reports what came back.
@@ -382,4 +407,13 @@ func checkSource(ctx context.Context, prs *ghpr.Client, src config.Source, login
 			"not seen -- add the noisiest authors to exclude_authors", src.Owner, page.Scanned)
 	}
 	return detail, nil
+}
+
+// loginDetail names the account reviews will be posted under, which is what
+// an operator checking this is really asking.
+func loginDetail(login, gh string) string {
+	if login == "" {
+		return gh
+	}
+	return "posting as " + login
 }
