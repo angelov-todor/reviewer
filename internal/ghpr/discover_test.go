@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/angelov-todor/firstpass/internal/runner"
+	"github.com/angelov-todor/reviewer/internal/runner"
 )
 
 const searchJSON = `{"total_count":3,"items":[
@@ -94,7 +94,7 @@ func TestDiscoverReadsTheResults(t *testing.T) {
 	got := found[0]
 	// Folded, because that is what Key and the store assume. GitHub answers
 	// "AstraBit-CPT" where a chat link says "astrabit-cpt", and an unfolded
-	// ref would be a second key for a pull request firstpass already has one
+	// ref would be a second key for a pull request the service already has one
 	// for -- which reads through as reviewing it twice.
 	if got.Ref.Owner != "astrabit-cpt" || got.Ref.Repo != "aex-trade-terminal" || got.Ref.Number != 213 {
 		t.Errorf("the repository is only in repository_url, and it decoded wrong: %+v", got.Ref)

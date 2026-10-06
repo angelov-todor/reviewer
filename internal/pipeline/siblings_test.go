@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/angelov-todor/firstpass/internal/chat"
-	"github.com/angelov-todor/firstpass/internal/review"
+	"github.com/angelov-todor/reviewer/internal/chat"
+	"github.com/angelov-todor/reviewer/internal/review"
 )
 
 // The post that prompted this: two links in one message, an API change and its
@@ -79,7 +79,7 @@ func TestPRsPostedTogetherSeeEachOther(t *testing.T) {
 }
 
 // A lone post costs nothing: no sibling fetch, no context, and the review is
-// exactly the review firstpass did before this existed.
+// exactly the review the service did before this existed.
 func TestALonePostFetchesNoSiblings(t *testing.T) {
 	h := siblingHarness(t, prURL("aex-balances", 12))
 
@@ -164,7 +164,7 @@ func TestSiblingsAreCappedSoOneReviewCannotBeBuried(t *testing.T) {
 // allow_owners must never be queried, let alone cloned. A sibling is a query.
 // The chat space is a chat room, not an access boundary -- somebody eventually
 // pastes a link to an unrelated repository next to a real one -- and without
-// this firstpass would run `gh pr diff` against that repository and paste
+// this the service would run `gh pr diff` against that repository and paste
 // several kilobytes of it into a prompt.
 func TestASiblingOutsideTheAllowlistIsNeverFetched(t *testing.T) {
 	h := siblingHarness(t, prURL("aex-backoffice", 319)+

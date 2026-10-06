@@ -1,5 +1,5 @@
 // Package worktree puts a pull request's head on disk in a throwaway checkout,
-// backed by a bare mirror in firstpass's own cache.
+// backed by a bare mirror in the service's own cache.
 //
 // It never opens the user's own clones. A background review that ran git in a
 // repository the user was working in is how uncommitted work gets lost.
@@ -15,8 +15,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/angelov-todor/firstpass/internal/prref"
-	"github.com/angelov-todor/firstpass/internal/runner"
+	"github.com/angelov-todor/reviewer/internal/prref"
+	"github.com/angelov-todor/reviewer/internal/runner"
 )
 
 // branchSpec brings the repository's branches down as remote-tracking refs, so
@@ -185,13 +185,13 @@ func (m *Manager) Prepare(ctx context.Context, ref prref.PRRef) (string, func(),
 		}
 		// A bare clone configures no fetch refspec at all, so the mirror
 		// cannot say what it tracks. Record it, so a plain `git fetch` in the
-		// mirror -- by firstpass or by hand -- brings the branches down.
+		// mirror -- by the service or by hand -- brings the branches down.
 		if err := m.git0(ctx, "-C", mirror, "config", "remote.origin.fetch", branchSpec); err != nil {
 			return "", noop, fmt.Errorf("configure mirror for %s: %w", ref.Key(), err)
 		}
 	}
 
-	prRef := "refs/firstpass/" + strconv.Itoa(ref.Number)
+	prRef := "refs/reviewer/" + strconv.Itoa(ref.Number)
 	spec := fmt.Sprintf("+refs/pull/%d/head:%s", ref.Number, prRef)
 	// The branch refspec is fetched alongside the pull ref so the worktree has
 	// something to diff against. Without it the checkout is a detached head

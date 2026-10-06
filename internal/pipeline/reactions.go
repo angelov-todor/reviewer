@@ -5,12 +5,12 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/angelov-todor/firstpass/internal/chat"
-	"github.com/angelov-todor/firstpass/internal/prref"
-	"github.com/angelov-todor/firstpass/internal/store"
+	"github.com/angelov-todor/reviewer/internal/chat"
+	"github.com/angelov-todor/reviewer/internal/prref"
+	"github.com/angelov-todor/reviewer/internal/store"
 )
 
-// The three reactions firstpass puts on a chat message that carried pull
+// The three reactions the service puts on a chat message that carried pull
 // request links. They are per message, not per pull request: one post
 // routinely carries several links and the reviews run strictly one at a time,
 // so a per-PR reaction would say nothing a reader could act on.
@@ -68,7 +68,7 @@ func (p *Pipeline) messageLock(name string) *sync.Mutex {
 // either, which keeps "a dry run left no trace of a reaction" a single
 // property rather than a claim about three separate call sites. Print-only is
 // the same on both counts, and additionally writes nothing to the store at
-// all. A nil React is the third case: `firstpass status` and `doctor` wire no
+// all. A nil React is the third case: `reviewer status` and `doctor` wire no
 // reactor, and cmd wires none in dry run.
 func (p *Pipeline) reactionsEnabled(opts Options) bool {
 	switch {
@@ -185,7 +185,7 @@ func (p *Pipeline) startMessageReaction(ctx context.Context, trigger string, opt
 		// No record for this trigger, and that is deliberate rather than
 		// incidental. Two candidates get here: a ref re-offered from the
 		// pending bucket, which candidates() gives no trigger at all, and a
-		// `firstpass replay`, whose trigger is the literal "replay" and not a
+		// `reviewer replay`, whose trigger is the literal "replay" and not a
 		// message name. Neither identifies a chat message, and there is
 		// nothing to react to without one.
 		return
@@ -234,24 +234,24 @@ func (p *Pipeline) startMessageReaction(ctx context.Context, trigger string, opt
 // outcome. It does nothing until then, and nothing at all if none of them was
 // ever reviewed.
 //
-// ✅ versus 💬 is decided by the verdict firstpass submitted on each pull
+// ✅ versus 💬 is decided by the verdict the service submitted on each pull
 // request, which is the only signal that actually distinguishes "clean" from
 // "has findings": the findings themselves are inline comments on the pull
 // request, and the pipeline never sees one. ✅ means every pull request this
-// message carried *that firstpass reviewed* was approved. Anything else is 💬.
+// message carried *that the service reviewed* was approved. Anything else is 💬.
 //
 // Two asymmetries are deliberate.
 //
-// Refs firstpass never reviewed -- skipped for their owner, the deny list,
+// Refs the service never reviewed -- skipped for their owner, the deny list,
 // their state, their author, or retired by pending expiry -- are left out of
 // the decision entirely. A skip is not a finding: nothing was wrong with the
-// code, firstpass simply had no business reviewing it, so a message carrying
+// code, the service simply had no business reviewing it, so a message carrying
 // one approved review and one merged link is clean.
 //
 // Everything short of an outright approval is 💬. store.VerdictApproved is
 // only ever set when a submission actually succeeded, so a findings verdict, a
 // reviewer that printed no verdict line, a submission that failed, and a
-// review that did not finish at all are all "firstpass does not know that this
+// review that did not finish at all are all "the service does not know that this
 // is clean" -- and not knowing must never be rendered as ✅. A misleading tick
 // on a pull request with twenty comments waiting is worse than no reaction.
 func (p *Pipeline) settleMessageReaction(ctx context.Context, trigger string, opts Options) {
@@ -299,7 +299,7 @@ func (p *Pipeline) settleMessageReaction(ctx context.Context, trigger string, op
 		// Nothing this message carried was ever reviewed: every ref was
 		// skipped for its owner, the deny list, its state, its author, being a
 		// draft, or was already decided. There is no result to report, and a
-		// bare ✅ on a message firstpass never acted on would be a lie.
+		// bare ✅ on a message the service never acted on would be a lie.
 		return
 	}
 	if len(rec.RefKeys) == 0 {
@@ -347,7 +347,7 @@ func (p *Pipeline) settleMessageReaction(ctx context.Context, trigger string, op
 		// exactly why it has to be said separately. The two can disagree: the
 		// ref list is re-read from the message text every sweep, and a chat
 		// message that is edited after its review started ends up with a 👀 on
-		// it and a ref list holding nothing firstpass reviewed.
+		// it and a ref list holding nothing the service reviewed.
 		return
 	}
 
@@ -379,7 +379,7 @@ func (p *Pipeline) settleMessageReaction(ctx context.Context, trigger string, op
 	}
 
 	// The 👀 comes off only after the result is on: a message with neither
-	// reaction reads as one firstpass never noticed, which is the one thing
+	// reaction reads as one the service never noticed, which is the one thing
 	// this feature exists to prevent.
 	if rec.WatchReaction == "" {
 		return

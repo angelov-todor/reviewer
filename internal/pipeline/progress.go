@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/angelov-todor/firstpass/internal/prref"
+	"github.com/angelov-todor/reviewer/internal/prref"
 )
 
 // Stage names one point in a sweep's progress that Pipeline.Progress, when
@@ -72,7 +72,7 @@ type Event struct {
 //
 // It does not make the *ordering* guarantee that a serial sweep had. Events
 // for different pull requests interleave, and a renderer that assumed
-// otherwise had to change; see cmd/firstpass/progressRenderer.
+// otherwise had to change; see cmd/reviewer/progressRenderer.
 func (p *Pipeline) progress(ev Event) {
 	if p.Progress == nil {
 		return

@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/angelov-todor/firstpass/internal/store"
+	"github.com/angelov-todor/reviewer/internal/store"
 )
 
 // statusLineFor returns the rendered table row naming key.
@@ -34,7 +34,7 @@ func TestRenderStatusShowsEachVerdictStateDistinguishably(t *testing.T) {
 		{Key: "o/r#2", Outcome: store.OutcomeReviewed, DecidedAt: decided,
 			Verdict: store.VerdictFindings},
 		{Key: "o/r#3", Outcome: store.OutcomeReviewed, DecidedAt: decided,
-			Verdict: store.VerdictUnknown, Detail: "printed no FIRSTPASS-VERDICT line"},
+			Verdict: store.VerdictUnknown, Detail: "printed no REVIEW-VERDICT line"},
 		{Key: "o/r#4", Outcome: store.OutcomeReviewed, DecidedAt: decided,
 			Detail: "submitting the approve verdict failed (gh pr review exit 1)"},
 		{Key: "o/r#5", Outcome: store.OutcomeNeedsAttention, DecidedAt: decided,

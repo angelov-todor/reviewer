@@ -1,4 +1,4 @@
-// Package store persists what firstpass has already decided, so a restart or a
+// Package store persists what the service has already decided, so a restart or a
 // crash never causes a second review of the same pull request.
 package store
 
@@ -26,8 +26,8 @@ const (
 	OutcomeExpired        Outcome = "expired"
 	OutcomeInFlight       Outcome = "in_flight"
 	// OutcomeCleared is a needs_attention or in_flight record a human dealt
-	// with by hand and then marked, with `firstpass clear`. Terminal like the
-	// rest, and deliberately distinct from reviewed: firstpass did not review
+	// with by hand and then marked, with `reviewer clear`. Terminal like the
+	// rest, and deliberately distinct from reviewed: the service did not review
 	// this pull request, so saying it did would be a false record.
 	OutcomeCleared Outcome = "cleared"
 )
@@ -37,32 +37,32 @@ const (
 // how a review that was killed part-way through is detected.
 func (o Outcome) Terminal() bool { return o != OutcomeInFlight }
 
-// Verdict is the review verdict firstpass submitted on a pull request after a
+// Verdict is the review verdict the service submitted on a pull request after a
 // successful review. It records what was submitted, not merely what the
-// reviewer decided: a verdict firstpass declined or failed to submit is not
+// reviewer decided: a verdict the service declined or failed to submit is not
 // one of the two positive values.
 type Verdict string
 
 const (
-	// VerdictNone is the zero value: there was a verdict and firstpass did
+	// VerdictNone is the zero value: there was a verdict and the service did
 	// not submit it. It covers a dry run, a submission that failed, and every
 	// row written before verdicts existed. Deliberately empty, so an old row
 	// on disk and a row with nothing submitted are the same state rather than
 	// two. It is distinct from VerdictUnknown, which says there was no
 	// verdict to submit in the first place.
 	VerdictNone Verdict = ""
-	// VerdictApproved means firstpass submitted an approving review.
+	// VerdictApproved means the service submitted an approving review.
 	VerdictApproved Verdict = "approved"
-	// VerdictFindings means firstpass submitted a COMMENT review because
+	// VerdictFindings means the service submitted a COMMENT review because
 	// something Critical or Important was raised.
 	VerdictFindings Verdict = "findings"
 	// VerdictUnknown means the review ran and its comments are posted, but
-	// the reviewer printed no verdict line firstpass recognised, so nothing
+	// the reviewer printed no verdict line the service recognised, so nothing
 	// was submitted and nothing was guessed.
 	VerdictUnknown Verdict = "unknown"
-	// VerdictWithheld means the reviewer decided approve and firstpass
+	// VerdictWithheld means the reviewer decided approve and the service
 	// declined to submit it: a human has an outstanding request for changes,
-	// or firstpass could not enumerate the feedback already on the pull
+	// or the service could not enumerate the feedback already on the pull
 	// request and so cannot support "everything raised has been addressed".
 	//
 	// A distinct value rather than reusing findings or none. Recording it as
@@ -72,7 +72,7 @@ const (
 	VerdictWithheld Verdict = "withheld"
 )
 
-// Review is the record for a pull request firstpass has acted on.
+// Review is the record for a pull request the service has acted on.
 type Review struct {
 	Key            string  `json:"key"`
 	Outcome        Outcome `json:"outcome"`
@@ -105,13 +105,13 @@ type Review struct {
 	ExitCode   int       `json:"exit_code,omitempty"`
 	ReportPath string    `json:"report_path,omitempty"`
 	Detail     string    `json:"detail,omitempty"`
-	// Verdict is what firstpass submitted on the pull request. omitempty is
+	// Verdict is what the service submitted on the pull request. omitempty is
 	// load-bearing here, unlike on the time fields above: a row with no
 	// verdict must look exactly like the reviewed rows already in the
 	// database from before verdicts existed.
 	Verdict Verdict `json:"verdict,omitempty"`
 
-	// Pass counts the reviews firstpass has run on this pull request: 1 for a
+	// Pass counts the reviews the service has run on this pull request: 1 for a
 	// first pass, 2 for the second pass a re-post with new commits triggers,
 	// and so on. Read it through PassNumber, never directly: the production
 	// database is full of reviewed rows written before this field existed,
@@ -217,7 +217,7 @@ func (r Review) HasReviewedCommit(sha string) bool {
 	return false
 }
 
-// PassNumber is how many reviews firstpass has run on this pull request,
+// PassNumber is how many reviews the service has run on this pull request,
 // counting this one. It exists so an absent Pass -- every reviewed row written
 // before the field did -- reads as the first pass it was, rather than as a
 // pass 0 that has never existed.
@@ -247,7 +247,7 @@ type Pending struct {
 	// a transient gh failure, a draft, a pause or simply the per-sweep cap was
 	// therefore lost for good, and its pending row could never be retired
 	// either, because the record gate's skip returns above expirePending: it
-	// sat in `firstpass status` for ever.
+	// sat in `reviewer status` for ever.
 	//
 	// A row written before these fields existed decodes with neither, which
 	// reads as "no post is known to have asked for this" -- the same as the
@@ -283,7 +283,7 @@ type Watermark struct {
 }
 
 // MessageRecord is what one chat message carried, kept so the chat reaction
-// firstpass puts on that message can be completed by a later sweep -- or a
+// the service puts on that message can be completed by a later sweep -- or a
 // later process.
 //
 // It exists because the reaction is per message, not per pull request: a
@@ -343,7 +343,7 @@ var (
 )
 
 // keySourceSince is the prefix for one timestamp per configured source: the
-// moment firstpass started watching it.
+// moment the service started watching it.
 //
 // In the meta bucket rather than a bucket of its own, because it is one small
 // value per source and the meta bucket already exists in every database on
@@ -361,19 +361,19 @@ func Open(path string) (*Store, error) {
 	}
 	db, err := bolt.Open(path, 0o600, &bolt.Options{Timeout: 5 * time.Second})
 	if err != nil {
-		// bbolt takes an exclusive lock on the file, so one firstpass at a
+		// bbolt takes an exclusive lock on the file, so one the service at a
 		// time. Said plainly, because bolt reports it as the bare word
 		// "timeout" -- and the operator meeting that message is running a
 		// one-shot command against a live daemon, which is the ordinary
 		// mistake, not a corrupt database.
 		if errors.Is(err, bolt.ErrTimeout) {
-			return nil, fmt.Errorf("%s is already open by another firstpass process; "+
+			return nil, fmt.Errorf("%s is already open by another the service process; "+
 				"stop the daemon (or wait for the sweep to finish) and try again", path)
 		}
 		return nil, fmt.Errorf("open %s: %w", path, err)
 	}
 	err = db.Update(func(tx *bolt.Tx) error {
-		// CreateBucketIfNotExists, not CreateBucket: firstpass was already
+		// CreateBucketIfNotExists, not CreateBucket: the service was already
 		// running in production when the messages bucket was added, so the
 		// database on disk has the other three and not this one. Store.get
 		// dereferences tx.Bucket() without a nil check, so an absent bucket
@@ -402,12 +402,12 @@ func (s *Store) Watermark() (Watermark, bool, error) {
 
 func (s *Store) SetWatermark(w Watermark) error { return s.put(bucketMeta, keyWatermark, w) }
 
-// SourceSince is when firstpass started watching a source, and whether it ever
+// SourceSince is when the service started watching a source, and whether it ever
 // has.
 //
 // Absent means this source has never been swept, which is the cold start: the
 // pull requests already open when a source is switched on are its history, and
-// history is not what firstpass is for. The chat side has had this rule since
+// history is not what the service is for. The chat side has had this rule since
 // the beginning -- a first run against a populated space reviews nothing -- and
 // a source without it would spend launch day reviewing every open review
 // request, some of them months old, and posting on all of them.

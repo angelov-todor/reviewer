@@ -15,7 +15,7 @@ import (
 func TestTheSiblingNoteForbidsReviewingTheSiblings(t *testing.T) {
 	note := siblingNote("example-org/a#1", []Sibling{
 		{Key: "example-org/b#2", URL: "https://example.invalid/b/2", Diff: "+ x",
-			Status: "being reviewed by firstpass right now, in its own separate review"},
+			Status: "being reviewed by the service right now, in its own separate review"},
 	})
 	for _, want := range []string{
 		"You are reviewing example-org/a#1",
@@ -31,21 +31,21 @@ func TestTheSiblingNoteForbidsReviewingTheSiblings(t *testing.T) {
 	}
 }
 
-// What firstpass knows about a sibling changes what the reviewer should do
+// What the service knows about a sibling changes what the reviewer should do
 // about a problem it spots there: one getting its own review will hear about
 // it separately, while one nothing else will look at needs mentioning here.
 //
-// This used to be a boolean claiming firstpass was "reviewing this one
+// This used to be a boolean claiming the service was "reviewing this one
 // separately", computed as "the record is not a completed review" -- which is
 // true of every skipped outcome, so it said somebody else would handle exactly
 // the drafts, own pull requests and merged ones that nobody would look at. The
 // note now repeats what the record says, and says plainly when there is no
 // record, because "no record" and "reviewed and clean" are opposite facts.
-func TestTheNoteReportsWhatFirstpassKnowsAboutASibling(t *testing.T) {
+func TestTheNoteReportsWhatTheServiceKnowsAboutASibling(t *testing.T) {
 	withStatus := siblingNote("a#1", []Sibling{
-		{Key: "b#2", Diff: "x", Status: "already reviewed by firstpass; its comments are on it"},
+		{Key: "b#2", Diff: "x", Status: "already reviewed by the service; its comments are on it"},
 	})
-	if !strings.Contains(withStatus, "firstpass's record for it: already reviewed") {
+	if !strings.Contains(withStatus, "the service's record for it: already reviewed") {
 		t.Errorf("the record must be repeated to the reviewer:\n%s", withStatus)
 	}
 

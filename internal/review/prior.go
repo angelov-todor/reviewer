@@ -29,9 +29,9 @@ type PriorItem struct {
 // the list can be trusted to be complete.
 type PriorFeedback struct {
 	Items []PriorItem
-	// Incomplete says firstpass could not enumerate the feedback fully. The
+	// Incomplete says the service could not enumerate the feedback fully. The
 	// reviewer is told, because "there is more you have not been shown" changes
-	// what an approval can honestly mean -- and firstpass refuses to submit one
+	// what an approval can honestly mean -- and the service refuses to submit one
 	// in that case regardless.
 	Incomplete bool
 }
@@ -57,7 +57,7 @@ func priorNote(p *PriorFeedback) string {
 	}
 
 	var b strings.Builder
-	b.WriteString("Existing feedback on this pull request, from every source firstpass can see " +
+	b.WriteString("Existing feedback on this pull request, from every source the service can see " +
 		"(inline review threads, review bodies, and plain comments), including your own earlier " +
 		"passes and your colleagues':\n\n")
 
@@ -104,7 +104,7 @@ func priorNote(p *PriorFeedback) string {
 		"for your verdict only: do not re-open or re-comment on a thread a colleague has resolved.\n")
 
 	if p.Incomplete {
-		b.WriteString("\nThis list is INCOMPLETE — firstpass could not enumerate all of the " +
+		b.WriteString("\nThis list is INCOMPLETE — the service could not enumerate all of the " +
 			"feedback. Say so in your review, and do not treat the absence of an item as evidence " +
 			"that nothing was raised.\n")
 	}

@@ -3,7 +3,7 @@ package pipeline
 // The pause must *stop* the expiry clock, not restart it.
 //
 // This invariant has now been attempted three times. The first attempt stopped
-// expiry only while a sweep was paused, so the first sweep after `firstpass
+// expiry only while a sweep was paused, so the first sweep after `the service
 // resume` expired the whole backlog at once. The second reset FirstSeen to now
 // on every paused park, which discards all age accrued before the pause rather
 // than only the paused interval: an operator who pauses regularly disabled
@@ -21,9 +21,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/angelov-todor/firstpass/internal/chat"
-	"github.com/angelov-todor/firstpass/internal/ghpr"
-	"github.com/angelov-todor/firstpass/internal/store"
+	"github.com/angelov-todor/reviewer/internal/chat"
+	"github.com/angelov-todor/reviewer/internal/ghpr"
+	"github.com/angelov-todor/reviewer/internal/store"
 )
 
 func mustPending(t *testing.T, h *harness, key string) store.Pending {
@@ -97,7 +97,7 @@ func TestPauseShiftsTheExpiryClockAndKeepsPrePauseAge(t *testing.T) {
 		t.Errorf("Attempts = %d; a paused park is not a failure of this PR", pd.Attempts)
 	}
 
-	// `firstpass resume`, then two more unpaused days. Total unpaused age is
+	// `reviewer resume`, then two more unpaused days. Total unpaused age is
 	// six days plus two: 192h against a 168h budget.
 	if err := os.Remove(h.cfg.PauseFile()); err != nil {
 		t.Fatal(err)

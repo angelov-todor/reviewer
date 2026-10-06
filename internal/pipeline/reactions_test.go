@@ -10,12 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/angelov-todor/firstpass/internal/chat"
-	"github.com/angelov-todor/firstpass/internal/config"
-	"github.com/angelov-todor/firstpass/internal/ghpr"
-	"github.com/angelov-todor/firstpass/internal/prref"
-	"github.com/angelov-todor/firstpass/internal/review"
-	"github.com/angelov-todor/firstpass/internal/store"
+	"github.com/angelov-todor/reviewer/internal/chat"
+	"github.com/angelov-todor/reviewer/internal/config"
+	"github.com/angelov-todor/reviewer/internal/ghpr"
+	"github.com/angelov-todor/reviewer/internal/prref"
+	"github.com/angelov-todor/reviewer/internal/review"
+	"github.com/angelov-todor/reviewer/internal/store"
 )
 
 // ---- fakes ----
@@ -113,7 +113,7 @@ func reactHarness(t *testing.T, msgs []chat.Message) (*harness, *fakeReactor) {
 	h.apply()
 	h.seedWatermark(t)
 
-	// ✅ now means "every pull request firstpass reviewed came back approved",
+	// ✅ now means "every pull request the service reviewed came back approved",
 	// so the harness's default review has to be a clean one. Left at the zero
 	// verdict, every review would record store.VerdictUnknown and every
 	// message would earn 💬 -- which would make most of the tests below pass
@@ -355,7 +355,7 @@ func TestAFindingsVerdictOnOneRefMakesTheWholeMessageFindings(t *testing.T) {
 
 func TestAnUnknownVerdictIsNotGoodEnoughForATick(t *testing.T) {
 	h, rc := reactHarness(t, []chat.Message{msg("spaces/A/messages/m1", prURL("aex-a", 1))})
-	// The reviewer printed no verdict line firstpass recognises, so firstpass
+	// The reviewer printed no verdict line the service recognises, so the service
 	// does not know whether this pull request is clean.
 	revOf(t, h).verdicts["example-org/aex-a#1"] = review.VerdictUnknown
 
@@ -425,7 +425,7 @@ func TestASkippedRefDoesNotSpoilAnOtherwiseCleanMessage(t *testing.T) {
 	})
 	// aex-a#1 is reviewed and approved; aex-b#2 is closed, so it is recorded
 	// terminal without ever being reviewed. A skip is not a finding: nothing
-	// was wrong with it, firstpass simply had no business reviewing it, and it
+	// was wrong with it, the service simply had no business reviewing it, and it
 	// says nothing at all about the code. It must not drag the message to 💬.
 	h.prs.info["example-org/aex-b#2"] = ghpr.PRInfo{State: "CLOSED", Author: "colleague"}
 
@@ -440,7 +440,7 @@ func TestASkippedRefDoesNotSpoilAnOtherwiseCleanMessage(t *testing.T) {
 		t.Fatalf("aex-b#2 Outcome = %q, want skipped_state", b.Outcome)
 	}
 	if got := emojis(rc); len(got) != 2 || got[1] != EmojiClean {
-		t.Errorf("emojis = %v, want [👀 ✅]: the one PR firstpass actually reviewed was approved", got)
+		t.Errorf("emojis = %v, want [👀 ✅]: the one PR the service actually reviewed was approved", got)
 	}
 }
 
@@ -449,7 +449,7 @@ func TestAnExpiredRefDoesNotSpoilAnOtherwiseCleanMessage(t *testing.T) {
 		msg("spaces/A/messages/m1", prURL("aex-a", 1)+"\n"+prURL("aex-b", 2)),
 	})
 	// aex-b#2 has been a draft for so long that its pending entry aged out.
-	// Expiry is firstpass giving up on ever reviewing it, not a finding.
+	// Expiry is the service giving up on ever reviewing it, not a finding.
 	h.prs.info["example-org/aex-b#2"] = ghpr.PRInfo{State: "OPEN", Author: "colleague", IsDraft: true}
 	h.cfg.PendingMaxAttempts = 1
 	h.apply()
@@ -478,7 +478,7 @@ func TestAnExpiredRefDoesNotSpoilAnOtherwiseCleanMessage(t *testing.T) {
 // messages can be edited. A message can therefore end up with a 👀 on it -- a
 // review really did start -- and a ref list in which nothing was reviewed at
 // all. Without the "no reviewed refs" guard the ref loop is vacuous, clean
-// stays true, and the message earns a bare ✅ for work firstpass never did.
+// stays true, and the message earns a bare ✅ for work the service never did.
 func TestAMessageLeftWithNoReviewedRefsGetsNoResultReaction(t *testing.T) {
 	h, rc := reactHarness(t, []chat.Message{
 		msg("spaces/A/messages/m1", prURL("aex-a", 1)+"\n"+prURL("aex-b", 2)),
@@ -495,7 +495,7 @@ func TestAMessageLeftWithNoReviewedRefsGetsNoResultReaction(t *testing.T) {
 	}
 
 	// The message is edited to point at a third, closed pull request instead.
-	// Its ref list is refreshed to one that holds nothing firstpass reviewed.
+	// Its ref list is refreshed to one that holds nothing the service reviewed.
 	h.prs.info["example-org/aex-c#3"] = ghpr.PRInfo{State: "CLOSED", Author: "colleague"}
 	h.ch.msgs = []chat.Message{msg("spaces/A/messages/m1", prURL("aex-c", 3))}
 	h.seedWatermark(t)
@@ -642,7 +642,7 @@ func TestMessageWhoseEveryRefIsSkippedNeverGetsAReaction(t *testing.T) {
 	}
 }
 
-func TestNoReactionsWhileFirstpassIsPaused(t *testing.T) {
+func TestNoReactionsWhileTheServiceIsPaused(t *testing.T) {
 	h, rc := reactHarness(t, []chat.Message{
 		msg("spaces/A/messages/m1", prURL("aex-a", 1)+"\n"+prURL("aex-b", 2)),
 	})
@@ -816,7 +816,7 @@ func TestARefFromPendingWithNoTriggerMessageDoesNotReact(t *testing.T) {
 		t.Errorf("a ref with no trigger message has nothing to react to: %v", got)
 	}
 	// Nor a result reaction: nothing ever put a 👀 on that message, so as far
-	// as the team can see firstpass never picked it up, and a bare result
+	// as the team can see the service never picked it up, and a bare result
 	// reaction would be the first they heard of it.
 	rec, ok, err := h.st.Message("spaces/A/messages/m1")
 	if err != nil || !ok {
@@ -1026,7 +1026,7 @@ func TestAnInFlightSiblingHoldsTheResultReaction(t *testing.T) {
 // review. A pause that lands after the sweep began therefore shows up only as
 // pausedMidSweep, and the end-of-sweep reaction pass has to honour that as
 // well as the sweep-start reading -- a sweep can run for the better part of
-// two hours, which is plenty of time for `firstpass pause` to be run.
+// two hours, which is plenty of time for `reviewer pause` to be run.
 func TestAPauseArrivingMidSweepStopsTheResultReaction(t *testing.T) {
 	h, rc := reactHarness(t, []chat.Message{
 		msg("spaces/A/messages/m1", prURL("aex-a", 1)+"\n"+prURL("aex-b", 2)),
@@ -1096,7 +1096,7 @@ func TestAPauseArrivingMidSweepStopsTheResultReaction(t *testing.T) {
 	}
 	// m2 gets its own pair, and that is new. Its pull request was parked by
 	// the pause and came back from the pending bucket on this sweep, which
-	// used to strip the trigger message -- so firstpass reviewed a pull
+	// used to strip the trigger message -- so the service reviewed a pull
 	// request and the post that carried it showed nothing at all. Pending
 	// rows keep their provenance now, so the post is picked up and settled
 	// like any other.

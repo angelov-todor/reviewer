@@ -1,5 +1,5 @@
-// Package ghpr answers the questions firstpass asks about a pull request before
-// deciding whether to review it, and submits the one thing firstpass writes
+// Package ghpr answers the questions the service asks about a pull request before
+// deciding whether to review it, and submits the one thing the service writes
 // back: the verdict of a finished review.
 package ghpr
 
@@ -10,11 +10,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/angelov-todor/firstpass/internal/prref"
-	"github.com/angelov-todor/firstpass/internal/runner"
+	"github.com/angelov-todor/reviewer/internal/prref"
+	"github.com/angelov-todor/reviewer/internal/runner"
 )
 
-// PRInfo is the subset of pull request state firstpass's filters need.
+// PRInfo is the subset of pull request state the service's filters need.
 type PRInfo struct {
 	State   string
 	IsDraft bool
@@ -64,7 +64,7 @@ func (c *Client) Inspect(ctx context.Context, ref prref.PRRef) (PRInfo, error) {
 	}, nil
 }
 
-// The two review events firstpass can submit. There is deliberately no
+// The two review events the service can submit. There is deliberately no
 // request-changes: see SubmitReview.
 const (
 	ReviewApprove = "approve"

@@ -8,7 +8,7 @@ package pipeline
 // candidates() then re-offered it with no trigger at all, so condition 2
 // failed and the record gate skipped it. The second pass was lost for good,
 // and because that skip returns above expirePending the pending row could
-// never be retired either: it sat in `firstpass status` forever.
+// never be retired either: it sat in `reviewer status` forever.
 //
 // The fix is to give the pending row its provenance. That also closes the
 // finding parked since the first release -- "TriggerMessage is lost for
@@ -21,8 +21,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/angelov-todor/firstpass/internal/chat"
-	"github.com/angelov-todor/firstpass/internal/store"
+	"github.com/angelov-todor/reviewer/internal/chat"
+	"github.com/angelov-todor/reviewer/internal/store"
 )
 
 // A re-post deferred by a transient Inspect failure, then retried on the next
@@ -371,7 +371,7 @@ func TestAReplayAfterNewCommitsSaysTheHeadHasMoved(t *testing.T) {
 // to have nothing new lands in the no-new-commits branch, which is above
 // expirePending -- and on every later sweep the record gate skips the ref
 // before the expiry can run. Without a delete there, the row is immortal: it
-// sits in `firstpass status` for ever, describing work that will never happen.
+// sits in `reviewer status` for ever, describing work that will never happen.
 //
 // Driven across three sweeps and then a year, because a single sweep cannot
 // tell a row that will be retired from one that never can be.

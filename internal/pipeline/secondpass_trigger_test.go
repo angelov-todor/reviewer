@@ -20,8 +20,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/angelov-todor/firstpass/internal/chat"
-	"github.com/angelov-todor/firstpass/internal/store"
+	"github.com/angelov-todor/reviewer/internal/chat"
+	"github.com/angelov-todor/reviewer/internal/store"
 )
 
 // The two posts that carried this pull request, both older than the review
@@ -216,7 +216,7 @@ func TestAGapUnderASkewedLocalClockDoesNotManufactureASecondPass(t *testing.T) {
 		olderPost    = "spaces/A/messages/older"
 		newerPost    = "spaces/A/messages/newer"
 	)
-	// Google's clock. The post firstpass reviewed for, one older than it that
+	// Google's clock. The post the service reviewed for, one older than it that
 	// was never processed, and one genuinely newer.
 	var (
 		reviewedPostAt = time.Date(2026, 9, 2, 9, 0, 0, 0, time.UTC)

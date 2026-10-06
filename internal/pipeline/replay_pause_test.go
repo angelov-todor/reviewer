@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/angelov-todor/firstpass/internal/store"
+	"github.com/angelov-todor/reviewer/internal/store"
 )
 
 // C3: pause-then-replay used to delete the review record and the pending
@@ -16,7 +16,7 @@ import (
 // was destroyed, and the ref was parked in pending, which candidates()
 // re-offers on every sweep regardless of the watermark. The operator read
 // "defer / paused, 0 reviewed" as "nothing happened"; the first sweep after
-// `firstpass resume` then reviewed it unasked, double-posting on top of whatever
+// `reviewer resume` then reviewed it unasked, double-posting on top of whatever
 // the earlier run had already left on a colleague's PR.
 func TestReviewOneRefusesWhilePausedAndDestroysNothing(t *testing.T) {
 	h := newHarness(t, nil)
@@ -35,7 +35,7 @@ func TestReviewOneRefusesWhilePausedAndDestroysNothing(t *testing.T) {
 		t.Fatal("a replay while paused must be an error, not a silent requeue")
 	}
 	if !strings.Contains(err.Error(), "resume") {
-		t.Errorf("the error must tell the operator to run `firstpass resume`, got %v", err)
+		t.Errorf("the error must tell the operator to run `reviewer resume`, got %v", err)
 	}
 
 	rec, ok, _ := h.st.Review(replayRef.Key())

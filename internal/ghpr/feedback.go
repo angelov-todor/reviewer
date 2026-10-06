@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/angelov-todor/firstpass/internal/prref"
+	"github.com/angelov-todor/reviewer/internal/prref"
 )
 
 // Surfaces a review comment can arrive on. All three are in use on the team's
@@ -40,7 +40,7 @@ const excerptWidth = 100
 // all for approval purposes: "there is more you have not been shown" cannot
 // support "everything raised here has been addressed".
 // Reduced from sixty for the same reason as excerptWidth: the index shares a
-// command line with everything else firstpass sends. Twenty-five items is
+// command line with everything else the service sends. Twenty-five items is
 // still more feedback than any pull request in this codebase's history has
 // carried -- the busiest measured had seven -- and Truncated says so when
 // there are more, which withholds the approval rather than pretending the list
@@ -88,7 +88,7 @@ type Feedback struct {
 }
 
 // ChangesRequested reports whether a human has an outstanding request for
-// changes. firstpass never submits an approval over one: appearing to clear a
+// changes. the service never submits an approval over one: appearing to clear a
 // colleague's block, under the operator's own identity, is not something an
 // automated pass should be able to do.
 func (f Feedback) ChangesRequested() bool {
@@ -167,7 +167,7 @@ type rawFeedback struct {
 // FetchFeedback returns every piece of existing feedback on a pull request.
 //
 // It exists because an approval has to mean something about the whole pull
-// request. firstpass used to know four things about a PR -- state, draft,
+// request. the service used to know four things about a PR -- state, draft,
 // author, head SHA -- so it would approve a change a colleague had already
 // asked for changes on, and a later pass would approve while its own earlier
 // findings sat unaddressed above it.

@@ -1,7 +1,7 @@
 package pipeline
 
-// The verdict: after a successful review, firstpass submits a GitHub review so
-// a reviewed pull request is never silent. The reviewer decides it, firstpass
+// The verdict: after a successful review, the service submits a GitHub review so
+// a reviewed pull request is never silent. The reviewer decides it, the service
 // submits it, and the store records what was actually submitted.
 //
 // These tests wire the real ghpr client over a runner.Fake rather than the
@@ -18,11 +18,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/angelov-todor/firstpass/internal/chat"
-	"github.com/angelov-todor/firstpass/internal/ghpr"
-	"github.com/angelov-todor/firstpass/internal/review"
-	"github.com/angelov-todor/firstpass/internal/runner"
-	"github.com/angelov-todor/firstpass/internal/store"
+	"github.com/angelov-todor/reviewer/internal/chat"
+	"github.com/angelov-todor/reviewer/internal/ghpr"
+	"github.com/angelov-todor/reviewer/internal/review"
+	"github.com/angelov-todor/reviewer/internal/runner"
+	"github.com/angelov-todor/reviewer/internal/store"
 )
 
 const verdictKey = "example-org/aex-balances#12"
@@ -49,7 +49,7 @@ func ghFake(reviewResult runner.Result) *runner.Fake {
 	return &runner.Fake{Replies: []runner.Reply{
 		{Match: "pr view", Result: runner.Result{Stdout: []byte(prJSON)}},
 		{Match: "pr review", Result: reviewResult},
-		// Two graphql answers, because firstpass asks twice: once before the
+		// Two graphql answers, because the service asks twice: once before the
 		// review for the prior-feedback index, and once after to establish
 		// whether the review actually posted anything. The second reply carries
 		// one comment authored by the operator, which is what a review that
@@ -197,7 +197,7 @@ func TestVerdictBodiesCarryNoBoilerplate(t *testing.T) {
 			if !strings.HasPrefix(tc.body, tc.first) {
 				t.Errorf("the body must open with %q, got %q", tc.first, tc.body)
 			}
-			for _, unwanted := range []string{"machine-written", "firstpass —", "Automated review"} {
+			for _, unwanted := range []string{"machine-written", "reviewer —", "Automated review"} {
 				if strings.Contains(tc.body, unwanted) {
 					t.Errorf("the body must not carry %q: %q", unwanted, tc.body)
 				}
@@ -220,7 +220,7 @@ func TestVerdictBodiesCarryNoBoilerplate(t *testing.T) {
 }
 
 // The findings do not hang off the verdict review: the reviewer posts them as
-// their own comment on the pull request, and firstpass submits the review
+// their own comment on the pull request, and the service submits the review
 // separately. Saying they were attached here would send a colleague looking
 // where they are not.
 //
@@ -517,7 +517,7 @@ func TestPrintOnlySubmitsNoVerdict(t *testing.T) {
 
 // TestNoBodyCallsItselfAPass is what remains of a test about pass numbering.
 //
-// The bodies used to open "Automated first pass by firstpass", which became
+// The bodies used to open "Automated first pass by the service", which became
 // false the moment re-reviews shipped -- production has produced passes 2, 3
 // and 5. The fix at the time was to number them. The owner has since asked for
 // the numbering gone entirely, along with the link back to this repository, on

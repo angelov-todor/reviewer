@@ -27,7 +27,7 @@ func usable(c Config) Config {
 }
 
 // TestBothSourcesAreDeclaredInTheConfig is what the config file is for: it
-// names every place firstpass looks, rather than naming one and implying the
+// names every place the service looks, rather than naming one and implying the
 // other.
 func TestBothSourcesAreDeclaredInTheConfig(t *testing.T) {
 	c, err := loadYAML(t, `
@@ -57,7 +57,7 @@ sources:
 // TestTheChatSpaceCannotBeTurnedOffBySilence is the property that kept chat
 // out of the list in the first place, and it survives chat being in the list.
 //
-// Deleting the chat source does not produce a firstpass that quietly reviews
+// Deleting the chat source does not produce the service that quietly reviews
 // only what GitHub offers. It produces an error, because a config that no
 // longer watches the team's space is a mistake nobody would see in a log.
 func TestTheChatSpaceCannotBeTurnedOffBySilence(t *testing.T) {

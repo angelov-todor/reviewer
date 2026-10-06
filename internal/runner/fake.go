@@ -27,7 +27,7 @@ type Reply struct {
 	// matching replies then take over.
 	//
 	// It exists so a test can model the world changing between two identical
-	// calls -- which is what verifying an outward effect requires. firstpass
+	// calls -- which is what verifying an outward effect requires. the service
 	// asks GitHub for a pull request's feedback before a review and again
 	// afterwards to establish whether the review actually posted anything, and
 	// with a single canned answer both calls return the same thing, so

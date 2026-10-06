@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/angelov-todor/firstpass/internal/runner"
+	"github.com/angelov-todor/reviewer/internal/runner"
 )
 
 // docsFixture builds a documentation checkout shaped like the real one: a few
@@ -111,7 +111,7 @@ func TestTheDocsNoteReachesTheSystemPromptWhenConfigured(t *testing.T) {
 // docs_root is documented generically, so any other checkout would have been
 // handed nine paths that do not exist -- and doctor would still have passed,
 // because the root itself was there. Discovery also keeps the note true as the
-// documentation changes, which happens far more often than firstpass is
+// documentation changes, which happens far more often than the service is
 // rebuilt.
 func TestTheDocsNoteListsWhatIsActuallyThere(t *testing.T) {
 	note := docsNote(docsFixture(t))
@@ -153,7 +153,7 @@ func TestTheDocsNoteSeparatesReadableFromSearchable(t *testing.T) {
 // TestTheDocsNoteRefusesUncitedRegulatoryClaims is the one assertion here that
 // is about damage rather than capability.
 //
-// firstpass submits under the operator's own GitHub identity. A finding that
+// the service submits under the operator's own GitHub identity. A finding that
 // says "this violates Reg-T" when it does not, posted in a real engineer's
 // name on a colleague's pull request, is worse than any finding it could have
 // been right about: it costs the author time, it costs the operator

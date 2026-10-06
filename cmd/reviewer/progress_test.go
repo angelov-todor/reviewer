@@ -11,13 +11,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/angelov-todor/firstpass/internal/chat"
-	"github.com/angelov-todor/firstpass/internal/config"
-	"github.com/angelov-todor/firstpass/internal/ghpr"
-	"github.com/angelov-todor/firstpass/internal/pipeline"
-	"github.com/angelov-todor/firstpass/internal/prref"
-	"github.com/angelov-todor/firstpass/internal/review"
-	"github.com/angelov-todor/firstpass/internal/store"
+	"github.com/angelov-todor/reviewer/internal/chat"
+	"github.com/angelov-todor/reviewer/internal/config"
+	"github.com/angelov-todor/reviewer/internal/ghpr"
+	"github.com/angelov-todor/reviewer/internal/pipeline"
+	"github.com/angelov-todor/reviewer/internal/prref"
+	"github.com/angelov-todor/reviewer/internal/review"
+	"github.com/angelov-todor/reviewer/internal/store"
 )
 
 func ref(n int) prref.PRRef {
@@ -85,7 +85,7 @@ func (f *fakeTicker) Stop()               { close(f.stopped) }
 
 // TestHeartbeatTicksWhileReviewingThenStopsReliably is the whole point of
 // this feature: a 12-minute silent gap is what made the operator think
-// firstpass had hung. This proves the heartbeat both fires while a review is
+// the service had hung. This proves the heartbeat both fires while a review is
 // in flight and -- just as important -- stops for good once the review
 // finishes, so no goroutine keeps printing after the command has moved on.
 // The tick interval is injected so the test never sleeps for real.

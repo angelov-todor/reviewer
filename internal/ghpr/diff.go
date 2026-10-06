@@ -7,7 +7,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/angelov-todor/firstpass/internal/prref"
+	"github.com/angelov-todor/reviewer/internal/prref"
 )
 
 // MaxDiffBytes bounds one sibling diff.
@@ -34,7 +34,7 @@ const MaxDiffBytes = 6 * 1024
 
 // PRDiff returns the unified diff of a pull request, and whether it was cut.
 //
-// Used for the pull requests posted alongside the one under review: firstpass
+// Used for the pull requests posted alongside the one under review: the service
 // gives the reviewer their diffs as context so it can tell whether a coupled
 // change agrees with itself across repositories.
 func (c *Client) PRDiff(ctx context.Context, ref prref.PRRef) (diff string, truncated bool, err error) {

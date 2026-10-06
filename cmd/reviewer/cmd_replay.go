@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/angelov-todor/firstpass/internal/config"
-	"github.com/angelov-todor/firstpass/internal/pipeline"
-	"github.com/angelov-todor/firstpass/internal/prref"
+	"github.com/angelov-todor/reviewer/internal/config"
+	"github.com/angelov-todor/reviewer/internal/pipeline"
+	"github.com/angelov-todor/reviewer/internal/prref"
 )
 
 func cmdReplay(args []string) error {
@@ -21,7 +21,7 @@ func cmdReplay(args []string) error {
 		return err
 	}
 	if fs.NArg() != 1 {
-		return errors.New("usage: firstpass replay [-live] [-quiet] <pr-url | owner/repo#n>")
+		return errors.New("usage: reviewer replay [-live] [-quiet] <pr-url | owner/repo#n>")
 	}
 
 	refs := prref.Extract(fs.Arg(0))

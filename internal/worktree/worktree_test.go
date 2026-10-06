@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/angelov-todor/firstpass/internal/prref"
-	"github.com/angelov-todor/firstpass/internal/runner"
+	"github.com/angelov-todor/reviewer/internal/prref"
+	"github.com/angelov-todor/reviewer/internal/runner"
 )
 
 // fixtureOrigin builds a real repository with a refs/pull/1/head ref, which is
@@ -272,7 +272,7 @@ func TestPrepareRecoversFromAMirrorWithNoRemote(t *testing.T) {
 
 // I5: git must never stop and wait for a human. On Windows a private-repo
 // HTTPS clone can raise a Git Credential Manager dialog and block forever,
-// and firstpass clones by plain https URL with no credential configuration.
+// and the service clones by plain https URL with no credential configuration.
 func TestGitInvocationsAreNonInteractive(t *testing.T) {
 	f := &runner.Fake{}
 	m := New(f, "git", filepath.Join(t.TempDir(), "repos"), filepath.Join(t.TempDir(), "work"))

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/angelov-todor/firstpass/internal/config"
+	"github.com/angelov-todor/reviewer/internal/config"
 )
 
 // cmdPause writes or removes the kill-switch file. It is a file rather than a
@@ -34,7 +34,7 @@ func cmdPause(args []string, on bool) error {
 	if err != nil {
 		return err
 	}
-	// Reported, not swallowed: a key firstpass ignored is exactly the sort of
+	// Reported, not swallowed: a key the service ignored is exactly the sort of
 	// thing that stays hidden until it matters.
 	for _, u := range unknown {
 		fmt.Fprintf(os.Stderr, "warning: ignoring unrecognised config: %s\n", u)
@@ -44,11 +44,11 @@ func cmdPause(args []string, on bool) error {
 	}
 
 	if on {
-		if err := os.WriteFile(cfg.PauseFile(), []byte("paused by firstpass pause\n"), 0o600); err != nil {
+		if err := os.WriteFile(cfg.PauseFile(), []byte("paused by reviewer pause\n"), 0o600); err != nil {
 			return err
 		}
 		fmt.Println("paused:", cfg.PauseFile())
-		fmt.Println("sweeps keep queueing PRs; nothing is reviewed or posted until `firstpass resume`")
+		fmt.Println("sweeps keep queueing PRs; nothing is reviewed or posted until `reviewer resume`")
 		return nil
 	}
 

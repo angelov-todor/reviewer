@@ -3,7 +3,7 @@ package pipeline
 // A re-post falls through the record gate, which every gate below it was
 // written without an existing review record in mind. Three of those gates can
 // write a terminal record, and each of them would overwrite the only evidence
-// of what firstpass actually did to this pull request: the commit it reviewed,
+// of what the service actually did to this pull request: the commit it reviewed,
 // the verdict it submitted, and which pass that was.
 //
 // Skipping is still right at all three. Losing the history is not.
@@ -13,9 +13,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/angelov-todor/firstpass/internal/chat"
-	"github.com/angelov-todor/firstpass/internal/ghpr"
-	"github.com/angelov-todor/firstpass/internal/store"
+	"github.com/angelov-todor/reviewer/internal/chat"
+	"github.com/angelov-todor/reviewer/internal/ghpr"
+	"github.com/angelov-todor/reviewer/internal/store"
 )
 
 // assertRecordIntact compares the whole record, field by field, against what
@@ -37,7 +37,7 @@ func assertRecordIntact(t *testing.T, h *harness, want store.Review) {
 	t.Errorf("record was rewritten:\n got %+v\nwant %+v", got, want)
 	// Named individually, because each of these is a separate thing to lose.
 	if got.Outcome != want.Outcome {
-		t.Errorf("Outcome = %q, want %q: firstpass reviewed this pull request", got.Outcome, want.Outcome)
+		t.Errorf("Outcome = %q, want %q: the service reviewed this pull request", got.Outcome, want.Outcome)
 	}
 	if got.Verdict != want.Verdict {
 		t.Errorf("Verdict = %q, want %q: the submitted verdict is not recoverable from anywhere else",
@@ -102,7 +102,7 @@ func TestARepostAttributedToYouKeepsThePreviousPassesRecord(t *testing.T) {
 	}
 	d, _ := decisionFor(rep, secondPassKey)
 	if d.Action != ActionSkip {
-		t.Fatalf("Action = %q (%s), want skip: firstpass does not review your own pull requests",
+		t.Fatalf("Action = %q (%s), want skip: the service does not review your own pull requests",
 			d.Action, d.Reason)
 	}
 	if len(h.rev.ran) != 0 {
@@ -208,7 +208,7 @@ func TestARepostFromADisallowedOwnerIsRefusedAboveTheRecordGate(t *testing.T) {
 				"and \"already decided\" here would mean the record was read first", d.Reason)
 		}
 		if rec, _, _ := h.st.Review(key); rec.Outcome != store.OutcomeSkippedOwner {
-			t.Errorf("Outcome = %q, want skipped_owner: the allowlist refusal is firstpass's own "+
+			t.Errorf("Outcome = %q, want skipped_owner: the allowlist refusal is the service's own "+
 				"decision and is recorded unconditionally, as it always was", rec.Outcome)
 		}
 	})

@@ -5,13 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/angelov-todor/firstpass/internal/chat"
-	"github.com/angelov-todor/firstpass/internal/store"
+	"github.com/angelov-todor/reviewer/internal/chat"
+	"github.com/angelov-todor/reviewer/internal/store"
 )
 
 func catchupStore(t *testing.T, recs ...store.Review) *store.Store {
 	t.Helper()
-	st, err := store.Open(filepath.Join(t.TempDir(), "firstpass.db"))
+	st, err := store.Open(filepath.Join(t.TempDir(), "reviewer.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

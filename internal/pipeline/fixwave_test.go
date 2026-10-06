@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/angelov-todor/firstpass/internal/chat"
-	"github.com/angelov-todor/firstpass/internal/review"
-	"github.com/angelov-todor/firstpass/internal/store"
+	"github.com/angelov-todor/reviewer/internal/chat"
+	"github.com/angelov-todor/reviewer/internal/review"
+	"github.com/angelov-todor/reviewer/internal/store"
 )
 
 // I1: chat.Fetch returns everything when the watermark has scrolled out of the
@@ -81,7 +81,7 @@ func TestBackfillIsNotAWatermarkGap(t *testing.T) {
 // I3: the spec says a sweep that finds an in_flight record from a previous run
 // marks the PR needs_attention. Doing that from the candidate list only worked
 // while the triggering message was still in the fetch window, and never worked
-// for a `firstpass replay` that died mid-review -- such a record stayed
+// for a `reviewer replay` that died mid-review -- such a record stayed
 // in_flight forever and the PR appeared in no report at all.
 func TestSweepRecoversAnOrphanedInFlightRecordWithNoChatMessage(t *testing.T) {
 	h := newHarness(t, nil)
@@ -136,7 +136,7 @@ func TestSweepRecoveryClearsAnyPendingEntryForTheOrphan(t *testing.T) {
 }
 
 // M17: a review killed by its deadline reports no exit status, and persisting
-// 0 would read as a clean success in `firstpass status`.
+// 0 would read as a clean success in `reviewer status`.
 func TestKilledReviewDoesNotRecordExitZero(t *testing.T) {
 	h := newHarness(t, []chat.Message{msg("spaces/A/messages/m1", prURL("aex-balances", 12))})
 	h.seedWatermark(t)

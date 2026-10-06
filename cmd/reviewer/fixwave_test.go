@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/angelov-todor/firstpass/internal/chat"
-	"github.com/angelov-todor/firstpass/internal/pipeline"
-	"github.com/angelov-todor/firstpass/internal/store"
+	"github.com/angelov-todor/reviewer/internal/chat"
+	"github.com/angelov-todor/reviewer/internal/pipeline"
+	"github.com/angelov-todor/reviewer/internal/store"
 )
 
 // I1: a fetch window too small to contain the watermark means messages were
@@ -33,14 +33,14 @@ func TestRenderSweepSaysNothingAboutAGapWhenThereIsNone(t *testing.T) {
 
 // I7: under Task Scheduler a bare one-line error goes into a log nobody reads.
 // A fatal chat error means the sweep did not happen at all, and the likeliest
-// cause is that firstpass is authenticated as the wrong Google account -- which
+// cause is that the service is authenticated as the wrong Google account -- which
 // otherwise looks exactly like "nobody posted a PR".
 func TestFatalChatBannerNamesTheCauseAndTheRemedy(t *testing.T) {
 	err := &chat.APIError{Code: 403, Status: "PERMISSION_DENIED", Message: "insufficient scope"}
 	out := fatalChatBanner(err)
 
 	for _, want := range []string{
-		"REFUSED TO SWEEP", "PERMISSION_DENIED", "Google account", "firstpass doctor",
+		"REFUSED TO SWEEP", "PERMISSION_DENIED", "Google account", "reviewer doctor",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("banner missing %q:\n%s", want, out)

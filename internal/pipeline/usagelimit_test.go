@@ -5,11 +5,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/angelov-todor/firstpass/internal/chat"
-	"github.com/angelov-todor/firstpass/internal/ghpr"
-	"github.com/angelov-todor/firstpass/internal/review"
-	"github.com/angelov-todor/firstpass/internal/runner"
-	"github.com/angelov-todor/firstpass/internal/store"
+	"github.com/angelov-todor/reviewer/internal/chat"
+	"github.com/angelov-todor/reviewer/internal/ghpr"
+	"github.com/angelov-todor/reviewer/internal/review"
+	"github.com/angelov-todor/reviewer/internal/runner"
+	"github.com/angelov-todor/reviewer/internal/store"
 )
 
 // limitHarness reviews the given pull requests with claude failing the way it
@@ -70,7 +70,7 @@ func callsMatching(f *runner.Fake, sub string) int {
 // out of capacity all three are wrong -- nothing was posted, it will succeed
 // unchanged once the limit resets, and it is not this pull request's fault.
 //
-// The operator's own defence was to notice and run `firstpass pause`, which
+// The operator's own defence was to notice and run `reviewer pause`, which
 // worked. It should not have been necessary.
 func TestAUsageLimitDefersInsteadOfStrandingThePR(t *testing.T) {
 	h, _, _ := limitHarness(t, prURL("aex-balances", 12), "",

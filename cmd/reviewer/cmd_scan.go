@@ -10,9 +10,9 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/angelov-todor/firstpass/internal/chat"
-	"github.com/angelov-todor/firstpass/internal/config"
-	"github.com/angelov-todor/firstpass/internal/pipeline"
+	"github.com/angelov-todor/reviewer/internal/chat"
+	"github.com/angelov-todor/reviewer/internal/config"
+	"github.com/angelov-todor/reviewer/internal/pipeline"
 )
 
 func cmdScan(args []string) error {
@@ -97,18 +97,18 @@ func fatalChatBanner(err error) string {
 	const rule = "****************************************************************"
 	var b strings.Builder
 	b.WriteString("\n" + rule + "\n")
-	b.WriteString("firstpass scan REFUSED TO SWEEP - Google Chat rejected the request\n")
+	b.WriteString("reviewer scan REFUSED TO SWEEP - Google Chat rejected the request\n")
 	b.WriteString(rule + "\n")
 	b.WriteString("  " + err.Error() + "\n\n")
 	b.WriteString("  Nothing was scanned, nothing was reviewed, and the watermark\n")
 	b.WriteString("  did not move. This is NOT a quiet week.\n\n")
-	b.WriteString("  Most likely cause: firstpass is authenticated as the wrong\n")
+	b.WriteString("  Most likely cause: the service is authenticated as the wrong\n")
 	b.WriteString("  Google account. Two accounts exist on this machine and the\n")
 	b.WriteString("  personal one can see none of the team's spaces, which looks\n")
 	b.WriteString("  exactly like \"nobody posted a PR\".\n\n")
-	b.WriteString("  Remedy: run `firstpass doctor`. If the Google Chat account\n")
+	b.WriteString("  Remedy: run `reviewer doctor`. If the Google Chat account\n")
 	b.WriteString("  check fails, re-run `python auth.py login` as the work\n")
-	b.WriteString("  account, then `firstpass doctor` again.\n")
+	b.WriteString("  account, then `reviewer doctor` again.\n")
 	b.WriteString(rule + "\n\n")
 	return b.String()
 }

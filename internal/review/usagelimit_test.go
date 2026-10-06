@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/angelov-todor/firstpass/internal/runner"
+	"github.com/angelov-todor/reviewer/internal/runner"
 )
 
 // The phrases are the ones the shipped claude binary actually contains, found

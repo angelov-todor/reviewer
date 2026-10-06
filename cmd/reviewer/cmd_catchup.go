@@ -7,17 +7,17 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/angelov-todor/firstpass/internal/chat"
-	"github.com/angelov-todor/firstpass/internal/config"
-	"github.com/angelov-todor/firstpass/internal/prref"
-	"github.com/angelov-todor/firstpass/internal/runner"
-	"github.com/angelov-todor/firstpass/internal/store"
+	"github.com/angelov-todor/reviewer/internal/chat"
+	"github.com/angelov-todor/reviewer/internal/config"
+	"github.com/angelov-todor/reviewer/internal/prref"
+	"github.com/angelov-todor/reviewer/internal/runner"
+	"github.com/angelov-todor/reviewer/internal/store"
 )
 
 // cmdCatchup moves the chat watermark to the newest message in the space
 // without reviewing anything in between.
 //
-// The gap it fills: firstpass off for a day comes back to a day of messages
+// The gap it fills: the service off for a day comes back to a day of messages
 // and reviews all of them. Usually that is exactly right -- it is why the
 // watermark exists -- but sometimes the operator has already dealt with that
 // window by hand, or simply does not want it, and the only way to say so was
@@ -35,7 +35,7 @@ func cmdCatchup(args []string) error {
 		return err
 	}
 	if fs.NArg() != 0 {
-		return errors.New("usage: firstpass catchup [-print-only]")
+		return errors.New("usage: reviewer catchup [-print-only]")
 	}
 
 	a, err := openApp(*cfgPath, false, false)
@@ -99,14 +99,14 @@ func cmdCatchup(args []string) error {
 	fmt.Fprintln(os.Stdout, "watermark moved; the next sweep starts after that message")
 	// Said plainly, because it is the consequence people forget: nothing here
 	// is queued for later. A pull request in the skipped window is reviewed
-	// only if somebody posts it again, or with `firstpass replay`.
+	// only if somebody posts it again, or with `reviewer replay`.
 	fmt.Fprintln(os.Stdout, "the pull requests above will not be reviewed unless re-posted "+
 		"or replayed")
 	return nil
 }
 
 // skippedRefs lists the distinct pull requests in the messages about to be
-// skipped, and how many of them firstpass had already decided about.
+// skipped, and how many of them the service had already decided about.
 //
 // The already-decided count matters to the operator's judgement: a window of
 // twenty messages whose pull requests are all reviewed is nothing to think

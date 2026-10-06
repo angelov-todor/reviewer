@@ -1,8 +1,8 @@
 package review
 
-// The verdict: the reviewer posts its findings itself, so firstpass sees only
+// The verdict: the reviewer posts its findings itself, so the service sees only
 // the exit code and stdout. One machine-readable line is the whole channel
-// between what the reviewer concluded and what firstpass submits, which is why
+// between what the reviewer concluded and what the service submits, which is why
 // its parsing is strict and never guesses.
 
 import (
@@ -11,26 +11,26 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/angelov-todor/firstpass/internal/runner"
+	"github.com/angelov-todor/reviewer/internal/runner"
 )
 
 func TestParseVerdictReadsApprove(t *testing.T) {
-	if got := ParseVerdict([]byte("looked at everything\nFIRSTPASS-VERDICT: approve\n")); got != VerdictApprove {
+	if got := ParseVerdict([]byte("looked at everything\nREVIEW-VERDICT: approve\n")); got != VerdictApprove {
 		t.Errorf("ParseVerdict() = %q, want %q", got, VerdictApprove)
 	}
 }
 
 func TestParseVerdictReadsFindings(t *testing.T) {
-	if got := ParseVerdict([]byte("posted 3 comments\nFIRSTPASS-VERDICT: findings")); got != VerdictFindings {
+	if got := ParseVerdict([]byte("posted 3 comments\nREVIEW-VERDICT: findings")); got != VerdictFindings {
 		t.Errorf("ParseVerdict() = %q, want %q", got, VerdictFindings)
 	}
 }
 
 func TestParseVerdictToleratesSurroundingWhitespace(t *testing.T) {
 	for _, in := range []string{
-		"  FIRSTPASS-VERDICT: approve  \n",
-		"\tFIRSTPASS-VERDICT:approve\r\n",
-		"FIRSTPASS-VERDICT:   approve",
+		"  REVIEW-VERDICT: approve  \n",
+		"\tREVIEW-VERDICT:approve\r\n",
+		"REVIEW-VERDICT:   approve",
 	} {
 		if got := ParseVerdict([]byte(in)); got != VerdictApprove {
 			t.Errorf("ParseVerdict(%q) = %q, want %q", in, got, VerdictApprove)
@@ -54,17 +54,17 @@ func TestParseVerdictWithNoOutputAtAllIsUnknown(t *testing.T) {
 }
 
 // Anything outside the two accepted words is unknown, never a guess: an
-// "lgtm" or an "approve with nits" that firstpass rounded to approve would
+// "lgtm" or an "approve with nits" that the service rounded to approve would
 // approve a colleague's pull request on the strength of a string it does not
 // actually understand.
 func TestParseVerdictIsStrictAboutTheValue(t *testing.T) {
 	for _, in := range []string{
-		"FIRSTPASS-VERDICT: lgtm",
-		"FIRSTPASS-VERDICT: APPROVE",
-		"FIRSTPASS-VERDICT: approve (only nits)",
-		"FIRSTPASS-VERDICT: approved",
-		"FIRSTPASS-VERDICT:",
-		"the answer is FIRSTPASS-VERDICT: approve",
+		"REVIEW-VERDICT: lgtm",
+		"REVIEW-VERDICT: APPROVE",
+		"REVIEW-VERDICT: approve (only nits)",
+		"REVIEW-VERDICT: approved",
+		"REVIEW-VERDICT:",
+		"the answer is REVIEW-VERDICT: approve",
 	} {
 		if got := ParseVerdict([]byte(in)); got != VerdictUnknown {
 			t.Errorf("ParseVerdict(%q) = %q, want %q", in, got, VerdictUnknown)
@@ -76,11 +76,11 @@ func TestParseVerdictIsStrictAboutTheValue(t *testing.T) {
 // own plan can mention it early and then print the real one. The last
 // matching line is the verdict; an earlier one is chatter.
 func TestParseVerdictTakesTheLastMatchingLine(t *testing.T) {
-	out := "I will finish with FIRSTPASS-VERDICT: approve\n" +
-		"FIRSTPASS-VERDICT: approve\n" +
+	out := "I will finish with REVIEW-VERDICT: approve\n" +
+		"REVIEW-VERDICT: approve\n" +
 		"wait, one more file\n" +
 		"posted a comment\n" +
-		"FIRSTPASS-VERDICT: findings\n" +
+		"REVIEW-VERDICT: findings\n" +
 		"done.\n"
 	if got := ParseVerdict([]byte(out)); got != VerdictFindings {
 		t.Errorf("ParseVerdict() = %q, want %q: the last verdict line is the verdict", got, VerdictFindings)
@@ -90,7 +90,7 @@ func TestParseVerdictTakesTheLastMatchingLine(t *testing.T) {
 // The reverse direction of the same rule: an unrecognised last line does not
 // fall back to a recognised earlier one.
 func TestParseVerdictDoesNotFallBackToAnEarlierLine(t *testing.T) {
-	out := "FIRSTPASS-VERDICT: findings\nFIRSTPASS-VERDICT: maybe\n"
+	out := "REVIEW-VERDICT: findings\nREVIEW-VERDICT: maybe\n"
 	if got := ParseVerdict([]byte(out)); got != VerdictUnknown {
 		t.Errorf("ParseVerdict() = %q, want %q", got, VerdictUnknown)
 	}
@@ -102,8 +102,8 @@ func TestRunReturnsTheParsedVerdict(t *testing.T) {
 		stdout string
 		want   Verdict
 	}{
-		{"approve", "all good\nFIRSTPASS-VERDICT: approve\n", VerdictApprove},
-		{"findings", "posted\nFIRSTPASS-VERDICT: findings\n", VerdictFindings},
+		{"approve", "all good\nREVIEW-VERDICT: approve\n", VerdictApprove},
+		{"findings", "posted\nREVIEW-VERDICT: findings\n", VerdictFindings},
 		{"silent", "found nothing worth saying\n", VerdictUnknown},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -124,12 +124,12 @@ func TestRunReturnsTheParsedVerdict(t *testing.T) {
 // The instruction has to stand on its own: it reaches the reviewer as a
 // system prompt, with no command next to it to lean on. It must name both
 // accepted lines, say the last line printed is the verdict, and state the
-// severity rule -- firstpass cannot apply that rule itself, because it never
+// severity rule -- the service cannot apply that rule itself, because it never
 // sees a finding.
 func TestVerdictInstructionStatesTheProtocolAndTheSeverityRule(t *testing.T) {
 	for _, want := range []string{
-		"FIRSTPASS-VERDICT: approve",
-		"FIRSTPASS-VERDICT: findings",
+		"REVIEW-VERDICT: approve",
+		"REVIEW-VERDICT: findings",
 		"last line of your output",
 		// The severity rule, in the taxonomy the prompt now asks for and the
 		// .NET review skill already uses. "Critical or Important" stood here
@@ -174,7 +174,7 @@ func TestVerdictInstructionStatesTheProtocolAndTheSeverityRule(t *testing.T) {
 //     blunter "do not perform any review" -- the reviewer worked for over
 //     three minutes. The task's own instructions dominate.
 //   - the ask added to the -p value: the reviewer's last line was
-//     "FIRSTPASS-VERDICT: findings", parsed and recorded. One variable
+//     "REVIEW-VERDICT: findings", parsed and recorded. One variable
 //     changed between that run and the failing one.
 //
 // The $ARGUMENTS worry was real but harmless: the command definition
@@ -189,7 +189,7 @@ func TestThePromptCarriesTheVerdictAsk(t *testing.T) {
 		if !strings.Contains(got, VerdictMarker+" approve") ||
 			!strings.Contains(got, VerdictMarker+" findings") {
 			t.Errorf("dryRun=%v: the prompt must ask for both verdict lines, or the reviewer "+
-				"finishes its review and prints nothing firstpass can read: %q", dry, got)
+				"finishes its review and prints nothing the service can read: %q", dry, got)
 		}
 		if !strings.HasPrefix(got, "Review pull request ") {
 			t.Errorf("dryRun=%v: the prompt must still open by naming the pull request: %q", dry, got)
@@ -245,8 +245,8 @@ func TestDryRunReportStatesTheWouldBeVerdict(t *testing.T) {
 		stdout string
 		want   string
 	}{
-		{"approve", "FIRSTPASS-VERDICT: approve\n", "would have been approve"},
-		{"findings", "FIRSTPASS-VERDICT: findings\n", "would have been findings"},
+		{"approve", "REVIEW-VERDICT: approve\n", "would have been approve"},
+		{"findings", "REVIEW-VERDICT: findings\n", "would have been findings"},
 		{"missing", "nothing to report\n", "no verdict line"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -280,7 +280,7 @@ func TestThePromptCarriesTheSeverityRuleAndTheFormat(t *testing.T) {
 	for _, dry := range []bool{true, false} {
 		got := New(&runner.Fake{}, "claude", nil, dry, t.TempDir()).Prompt(ref)
 
-		// The format, because firstpass cannot see a finding and so cannot
+		// The format, because the service cannot see a finding and so cannot
 		// tell a nit from a blocker except through the label the reviewer
 		// puts on it. Skill selection was supposed to supply this and does
 		// not reliably: the first live review under the general prompt loaded

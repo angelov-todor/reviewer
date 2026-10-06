@@ -40,9 +40,9 @@ const bigSubtreeWords = 40000
 // docs_root generically, so any other checkout would have been handed nine
 // paths that do not exist -- and doctor would still have passed, because the
 // root itself was there. Discovery also means the note stays true as the docs
-// change, which they do far more often than firstpass is rebuilt.
+// change, which they do far more often than the service is rebuilt.
 //
-// The citation requirement is the important part. firstpass submits under the
+// The citation requirement is the important part. the service submits under the
 // operator's own GitHub identity, and a fabricated regulatory claim on a
 // colleague's pull request -- "this violates Reg-T" when it does not -- costs
 // far more than a wrong null-check comment. A finding that cannot name the

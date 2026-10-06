@@ -10,9 +10,9 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/angelov-todor/firstpass/internal/chat"
-	"github.com/angelov-todor/firstpass/internal/config"
-	"github.com/angelov-todor/firstpass/internal/pipeline"
+	"github.com/angelov-todor/reviewer/internal/chat"
+	"github.com/angelov-todor/reviewer/internal/config"
+	"github.com/angelov-todor/reviewer/internal/pipeline"
 )
 
 func cmdWatch(args []string) error {
@@ -79,8 +79,8 @@ func cmdWatch(args []string) error {
 // duration.
 //
 // bbolt takes an exclusive lock on the database file for as long as it is
-// open. A daemon that held the store across its interval would make `firstpass
-// status`, `firstpass scan` and `firstpass replay` fail with a five-second lock
+// open. A daemon that held the store across its interval would make `the service
+// status`, `reviewer scan` and `reviewer replay` fail with a five-second lock
 // timeout for its entire lifetime — the operator's only window into the
 // daemon, unavailable exactly when they need it. The interval is minutes, so
 // releasing the lock between ticks buys real observability for nothing.
@@ -110,7 +110,7 @@ func watchSweep(ctx context.Context, cfgPath string, live bool, log *slog.Logger
 		"decisions", len(rep.Decisions), "paused", rep.Paused)
 	if rep.WatermarkGap {
 		log.Warn("fetch window too small: messages were not scanned and the watermark was held; " +
-			"raise fetch_limit in the config, or run `firstpass scan -backfill N` to cover the gap")
+			"raise fetch_limit in the config, or run `reviewer scan -backfill N` to cover the gap")
 	}
 	for _, d := range rep.Decisions {
 		if d.Action == pipeline.ActionNeedsAttention {

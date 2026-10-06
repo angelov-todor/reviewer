@@ -11,10 +11,10 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/angelov-todor/firstpass/internal/chat"
-	"github.com/angelov-todor/firstpass/internal/config"
-	"github.com/angelov-todor/firstpass/internal/ghpr"
-	"github.com/angelov-todor/firstpass/internal/runner"
+	"github.com/angelov-todor/reviewer/internal/chat"
+	"github.com/angelov-todor/reviewer/internal/config"
+	"github.com/angelov-todor/reviewer/internal/ghpr"
+	"github.com/angelov-todor/reviewer/internal/runner"
 )
 
 type check struct {
@@ -117,7 +117,7 @@ func cmdDoctor(args []string) error {
 		}), cfg.Paths.GH)
 
 		// Authenticated is not the same as allowed to write. `gh pr review`
-		// is the first writing gh command firstpass runs, and a token that
+		// is the first writing gh command the service runs, and a token that
 		// can read pull requests but not review them fails once per PR --
 		// which the operator only discovers after a twelve-minute review has
 		// already run.
@@ -243,7 +243,7 @@ func writable(dir string) error {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
 	}
-	probe := filepath.Join(dir, ".firstpass-write-probe")
+	probe := filepath.Join(dir, ".reviewer-write-probe")
 	if err := os.WriteFile(probe, []byte("ok"), 0o600); err != nil {
 		return err
 	}
@@ -262,7 +262,7 @@ func version(ctx context.Context, r runner.Runner, bin string, args ...string) e
 }
 
 // ghReviewScope is a read-only preflight for the one writing gh command
-// firstpass runs, `gh pr review`. It returns the detail to show on a pass.
+// the service runs, `gh pr review`. It returns the detail to show on a pass.
 //
 // `gh api --include user` is a GET: it reads the authenticated user and, for
 // a classic token, comes back with an `x-oauth-scopes` response header naming
@@ -289,7 +289,7 @@ func ghReviewScope(ctx context.Context, r runner.Runner, gh string) (string, err
 	if !ok || len(scopes) == 0 {
 		return "write access could not be determined: this token sent no x-oauth-scopes header, " +
 			"which is normal for a fine-grained or GitHub App token. If it turns out to lack " +
-			"write access, each verdict is recorded as a failed submission in `firstpass status` " +
+			"write access, each verdict is recorded as a failed submission in `reviewer status` " +
 			"and never retried", nil
 	}
 	for _, s := range scopes {
@@ -375,7 +375,7 @@ func checkSource(ctx context.Context, prs *ghpr.Client, src config.Source, login
 		detail += " (GitHub returned partial results; the next sweep re-runs the search)"
 	}
 	// A full page is reported as a failure, because it is the one outcome the
-	// operator has to act on: pull requests exist that firstpass will never
+	// operator has to act on: pull requests exist that the service will never
 	// see until the noisiest authors are excluded.
 	if page.Truncated {
 		return detail, fmt.Errorf("%s: a full page (%d scanned), so some pull requests were "+

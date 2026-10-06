@@ -49,7 +49,7 @@ func (c *Client) AddReaction(ctx context.Context, messageName, emoji string) (st
 // RemoveReaction deletes one reaction by its full name.
 //
 // An empty payload on a zero exit is a success. The Chat API's delete has
-// nothing to report, and firstpass's own chat.py already converts the
+// nothing to report, and the service's own chat.py already converts the
 // "Invalid JSON response" that an empty body provokes in its api_request
 // helper into an explicit success -- but treating an empty body as a failure
 // here would still make every genuinely successful removal log an error the

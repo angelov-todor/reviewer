@@ -1,6 +1,6 @@
 package ghpr
 
-// SubmitReview is the only writing gh command firstpass runs. Its argv is
+// SubmitReview is the only writing gh command the service runs. Its argv is
 // asserted in order rather than by substring presence: --approve and --comment
 // are one word apart and mean opposite things to the team's review queue, and
 // a --body that drifted away from its flag would submit the wrong argument
@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/angelov-todor/firstpass/internal/runner"
+	"github.com/angelov-todor/reviewer/internal/runner"
 )
 
 func TestSubmitReviewApproveArgv(t *testing.T) {

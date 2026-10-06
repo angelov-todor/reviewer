@@ -233,12 +233,12 @@ func TestValidate(t *testing.T) {
 
 	// I9: worktree.Prepare passes state_dir-derived paths to `git worktree
 	// add` (resolved relative to the mirror) and to os.RemoveAll (resolved
-	// relative to firstpass's cwd). With a relative state_dir those two
-	// disagree, and a firstpass launched from inside one of the operator's own
+	// relative to the service's cwd). With a relative state_dir those two
+	// disagree, and the service launched from inside one of the operator's own
 	// clones would run that RemoveAll inside their working copy.
 	t.Run("relative state_dir is an error", func(t *testing.T) {
 		c := withRequired(Default())
-		c.StateDir = filepath.Join("state", "firstpass")
+		c.StateDir = filepath.Join("state", "reviewer")
 		if err := c.Validate(); err == nil {
 			t.Error("a relative state_dir must fail validation: it can resolve inside the user's own clone")
 		}

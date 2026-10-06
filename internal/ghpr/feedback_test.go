@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/angelov-todor/firstpass/internal/prref"
-	"github.com/angelov-todor/firstpass/internal/runner"
+	"github.com/angelov-todor/reviewer/internal/prref"
+	"github.com/angelov-todor/reviewer/internal/runner"
 )
 
 var fbRef = prref.PRRef{Owner: "example-org", Repo: "aex-balances", Number: 12}
@@ -112,7 +112,7 @@ func TestFeedbackMarksBots(t *testing.T) {
 // especially: all three threads on the real pull request this came from are
 // unresolved and outdated, which may mean fixed or may mean the lines merely
 // moved. Only the code can tell, so the flag is shown to the reviewer rather
-// than resolved by firstpass.
+// than resolved by the service.
 func TestFeedbackCarriesThreadStateWithoutInterpretingIt(t *testing.T) {
 	f := parseFixture(t, feedbackFixture)
 	var resolved, outdated, nullLine int

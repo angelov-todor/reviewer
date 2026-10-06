@@ -10,8 +10,8 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/angelov-todor/firstpass/internal/config"
-	"github.com/angelov-todor/firstpass/internal/store"
+	"github.com/angelov-todor/reviewer/internal/config"
+	"github.com/angelov-todor/reviewer/internal/store"
 )
 
 func cmdStatus(args []string) error {
@@ -46,7 +46,7 @@ func cmdStatus(args []string) error {
 }
 
 // outcomeCell is the OUTCOME column: the outcome, and for a review the
-// verdict firstpass submitted with it.
+// verdict the service submitted with it.
 //
 // A bare "reviewed" is what the operator was reading for a clean pull request
 // that said nothing at all, so every verdict state gets its own string. In
@@ -99,7 +99,7 @@ func renderStatus(w io.Writer, reviews []store.Review, pending []store.Pending,
 	}
 	fmt.Fprintf(w, "mode: %s\n", mode)
 	if paused {
-		fmt.Fprintln(w, "state: PAUSED — nothing will be reviewed or posted until `firstpass resume`")
+		fmt.Fprintln(w, "state: PAUSED — nothing will be reviewed or posted until `reviewer resume`")
 	}
 	if hasWM {
 		fmt.Fprintf(w, "watermark: %s (%s)\n", wm.MessageName, wm.CreateTime.Format(time.RFC3339))
@@ -148,7 +148,7 @@ func renderStatus(w io.Writer, reviews []store.Review, pending []store.Pending,
 		tw.Flush()
 		if actionable > 0 {
 			fmt.Fprintf(w, "\n%d need attention. Each may already carry partial comments; "+
-				"run `firstpass replay <pr-url>` to review one again deliberately.\n", actionable)
+				"run `reviewer replay <pr-url>` to review one again deliberately.\n", actionable)
 		}
 		if inFlight > 0 {
 			fmt.Fprintf(w, "%d still marked in_flight: a run died mid-review and never recorded an "+

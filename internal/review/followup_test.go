@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/angelov-todor/firstpass/internal/runner"
+	"github.com/angelov-todor/reviewer/internal/runner"
 )
 
 // blockedReportsDir returns a reports directory that cannot be created,
@@ -144,7 +144,7 @@ func TestDryRunWithNoOutputStillWritesAReportNamingTheFailure(t *testing.T) {
 //
 // That reasoning holds for a review that finished. It is exactly wrong for one
 // that did not: a killed or failed live review was posting comments one at a
-// time when it stopped, firstpass cannot tell how far it got, and the operator
+// time when it stopped, the service cannot tell how far it got, and the operator
 // is told as much -- "comments may be partially posted". Whatever the reviewer
 // had printed is the only evidence of how far it actually got, and throwing it
 // away leaves the operator to work that out by reading the pull request.

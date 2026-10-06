@@ -1,6 +1,6 @@
 package store
 
-// The verdict recorded against a review: what firstpass actually submitted on
+// The verdict recorded against a review: what the service actually submitted on
 // the pull request, which is not always what the reviewer decided.
 
 import (
