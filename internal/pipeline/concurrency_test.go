@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/angelov-todor/firstpass/internal/chat"
-	"github.com/angelov-todor/firstpass/internal/prref"
+	"github.com/angelov-todor/reviewer/internal/chat"
+	"github.com/angelov-todor/reviewer/internal/prref"
 )
 
 // TestReserveReviewNeverExceedsTheCap is the property the serial code got for
@@ -19,7 +19,7 @@ import (
 // before the review". Read as a pair of statements that is equivalent to a
 // reservation; run concurrently it is not, because every worker can observe
 // the same pre-cap count and each go on to review. The cap bounds how many of
-// other people's pull requests firstpass writes comments on in one sweep, so
+// other people's pull requests the service writes comments on in one sweep, so
 // exceeding it is not an accounting slip.
 func TestReserveReviewNeverExceedsTheCap(t *testing.T) {
 	const cap, workers = 3, 24
@@ -227,7 +227,7 @@ func TestDecisionsKeepCandidateOrderWhateverTheCompletionOrder(t *testing.T) {
 
 // TestTheCapHoldsWhenReviewsRunConcurrently is the end-to-end form of
 // TestReserveReviewNeverExceedsTheCap: the cap is what bounds how many of
-// other people's pull requests firstpass comments on in one sweep, and three
+// other people's pull requests the service comments on in one sweep, and three
 // workers racing for the last slot is exactly the situation the serial
 // check-then-increment got wrong.
 func TestTheCapHoldsWhenReviewsRunConcurrently(t *testing.T) {

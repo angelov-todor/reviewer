@@ -81,7 +81,7 @@ func TestOSRunSurfacesContextDeadline(t *testing.T) {
 // only; anything that child spawned keeps the pipe open. `claude` spawns tool
 // subprocesses constantly.
 //
-// What that costs firstpass: Ctrl-C during a review does not stop it, the
+// What that costs the service: Ctrl-C during a review does not stop it, the
 // operator waits on whatever the reviewer happens to be running; review_timeout
 // stops meaning what it says; and once reviews run concurrently, shutdown waits
 // on the slowest of them rather than on the deadline.
@@ -113,7 +113,7 @@ func TestOSRunAbandonsAKilledCommandPromptly(t *testing.T) {
 }
 
 func TestOSRunReportsMissingBinary(t *testing.T) {
-	if _, err := (OS{}).Run(context.Background(), "", "firstpass-no-such-binary"); err == nil {
+	if _, err := (OS{}).Run(context.Background(), "", "reviewer-no-such-binary"); err == nil {
 		t.Error("a missing executable must be an error")
 	}
 }

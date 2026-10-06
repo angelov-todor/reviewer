@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/angelov-todor/firstpass/internal/pipeline"
+	"github.com/angelov-todor/reviewer/internal/pipeline"
 )
 
 func TestReviewedCountReflectsTheDecision(t *testing.T) {

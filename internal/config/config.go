@@ -1,4 +1,4 @@
-// Package config loads firstpass's configuration, defaulting to values safe
+// Package config loads the service's configuration, defaulting to values safe
 // enough to run unattended.
 package config
 
@@ -37,7 +37,7 @@ func (d *Duration) UnmarshalYAML(n *yaml.Node) error {
 // D returns the wrapped duration.
 func (d Duration) D() time.Duration { return time.Duration(d) }
 
-// Paths names the external programs firstpass drives.
+// Paths names the external programs the service drives.
 type Paths struct {
 	Python     string `yaml:"python"`
 	ChatScript string `yaml:"chat_script"`
@@ -46,7 +46,7 @@ type Paths struct {
 	GH         string `yaml:"gh"`
 }
 
-// Config is the whole of firstpass's configuration.
+// Config is the whole of the service's configuration.
 type Config struct {
 	Space              string   `yaml:"space"`
 	GithubLogin        string   `yaml:"github_login"`
@@ -54,7 +54,7 @@ type Config struct {
 	DryRun             bool     `yaml:"dry_run"`
 	MaxReviewsPerSweep int      `yaml:"max_reviews_per_sweep"`
 	// ReviewConcurrency is how many reviews may run at once. One is serial,
-	// which is what firstpass did before this existed and remains the default:
+	// which is what the service did before this existed and remains the default:
 	// a tool that writes comments on colleagues' pull requests should not
 	// change how much it does at once because somebody upgraded.
 	//
@@ -88,7 +88,7 @@ type Config struct {
 	DocsRoot string `yaml:"docs_root"`
 	StateDir string `yaml:"state_dir"`
 	Paths    Paths  `yaml:"paths"`
-	// Sources are the extra places firstpass looks for pull requests, beyond
+	// Sources are the extra places the service looks for pull requests, beyond
 	// the chat space.
 	//
 	// The chat space is not listed here and is not optional. It is where the
@@ -99,13 +99,13 @@ type Config struct {
 	Sources []Source `yaml:"sources"`
 }
 
-// The source types firstpass understands.
+// The source types the service understands.
 const (
 	SourceChat   = "chat"
 	SourceGitHub = "github"
 )
 
-// Source is one place firstpass looks for pull requests.
+// Source is one place the service looks for pull requests.
 //
 // Both kinds are written here, so the config file names every source rather
 // than one of them. What it cannot do is switch the chat space off: a config
@@ -151,7 +151,7 @@ type Source struct {
 	//
 	// Off by default, because the pull requests already open when a source is
 	// switched on are its history: on this organisation that is eight, four of
-	// them months old, and firstpass would post on all of them within a
+	// them months old, and the service would post on all of them within a
 	// quarter of an hour of being started. On is for deliberately clearing a
 	// backlog, which is a thing somebody might want once.
 	ReviewBacklog bool `yaml:"review_backlog"`
@@ -192,19 +192,19 @@ func Default() Config {
 // DefaultStateDir is where the database, reports, mirrors and worktrees live.
 func DefaultStateDir() string {
 	if d := os.Getenv("LOCALAPPDATA"); d != "" {
-		return filepath.Join(d, "firstpass")
+		return filepath.Join(d, "reviewer")
 	}
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".firstpass")
+	return filepath.Join(home, ".reviewer")
 }
 
 // DefaultConfigPath is the config file consulted when no -config flag is given.
 func DefaultConfigPath() string {
 	if d := os.Getenv("APPDATA"); d != "" {
-		return filepath.Join(d, "firstpass", "config.yaml")
+		return filepath.Join(d, "reviewer", "config.yaml")
 	}
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".firstpass", "config.yaml")
+	return filepath.Join(home, ".reviewer", "config.yaml")
 }
 
 // Load starts from Default and overlays whatever the YAML file specifies. A
@@ -223,7 +223,7 @@ func Load(path string) (Config, error) {
 	//
 	// The trap is not a typo going unnoticed, it is a key that lands one level
 	// away from where it belongs and keeps its default. `state_dir` written
-	// under `paths:` parses cleanly, changes nothing, and leaves firstpass
+	// under `paths:` parses cleanly, changes nothing, and leaves the service
 	// using the default state directory -- which cost real damage during a
 	// diagnostic session: a config written specifically to isolate a test run
 	// from production reported the production watermark and all 61 production
@@ -252,7 +252,7 @@ func Load(path string) (Config, error) {
 // LoadLenient is Load without the strictness, returning any unknown keys it
 // found instead of failing on them.
 //
-// It exists for one caller: the kill switch. `firstpass pause` needs
+// It exists for one caller: the kill switch. `reviewer pause` needs
 // state_dir and nothing else, and refusing to compute it because some
 // unrelated key is misspelled would mean a typo in the config file disables
 // the operator's ability to stop a live sweep that is posting comments to
@@ -297,13 +297,13 @@ func LoadLenient(path string) (Config, []string, error) {
 func (c Config) Validate() error {
 	// Required however it is written. This is what stops a config from
 	// turning the chat space off by omission: deleting the chat source is an
-	// error rather than a quieter firstpass.
+	// error rather than a quieter service.
 	if c.Space == "" {
 		return errors.New("a chat space is required: add a source of type \"chat\" with its " +
 			"\"space\", or set the top-level \"space\" key (see config.yaml.example)")
 	}
 	if c.GithubLogin == "" {
-		return errors.New("github_login is required: without it firstpass would review your own PRs; " +
+		return errors.New("github_login is required: without it the service would review your own PRs; " +
 			"set \"github_login\" in your config file (see config.yaml.example)")
 	}
 	if len(c.AllowOwners) == 0 {
@@ -351,7 +351,7 @@ func (c Config) Validate() error {
 	// watches both and silently watches whichever was written last, because
 	// everything downstream reads a single space.
 	if chats > 1 {
-		return fmt.Errorf("sources: %d chat sources, but firstpass watches one space; "+
+		return fmt.Errorf("sources: %d chat sources, but the service watches one space; "+
 			"remove the extra ones", chats)
 	}
 	if c.ChatTimeout.D() <= 0 {
@@ -392,11 +392,11 @@ func (c Config) Validate() error {
 	if !filepath.IsAbs(c.StateDir) {
 		// A relative state_dir is resolved differently by the two consumers
 		// that matter: `git worktree add` resolves it against the mirror,
-		// os.RemoveAll against firstpass's working directory. Launched from
+		// os.RemoveAll against the service's working directory. Launched from
 		// inside one of the user's own clones, that RemoveAll would run in
 		// their working copy.
 		return fmt.Errorf("state_dir must be an absolute path, got %q: a relative path can resolve "+
-			"inside whatever directory firstpass was launched from", c.StateDir)
+			"inside whatever directory the service was launched from", c.StateDir)
 	}
 	return nil
 }
@@ -465,7 +465,7 @@ func (s Source) validate(i int, c Config) error {
 	if s.Login(c.GithubLogin) == "" {
 		return fmt.Errorf("sources[%d]: review_requested is required when github_login is unset", i)
 	}
-	// The owner allowlist is what stops firstpass commenting on strangers'
+	// The owner allowlist is what stops the service commenting on strangers'
 	// pull requests, and it is applied per candidate regardless of where the
 	// candidate came from. A source pointed outside it is therefore not
 	// dangerous -- every candidate it produced would be refused -- but it is
@@ -482,7 +482,7 @@ func (s Source) validate(i int, c Config) error {
 	return nil
 }
 
-// ID identifies a source across restarts and config edits, so what firstpass
+// ID identifies a source across restarts and config edits, so what the service
 // remembers about it survives both.
 //
 // Owner and login, not the position in the list: reordering the entries or

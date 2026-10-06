@@ -1,6 +1,6 @@
 package pipeline
 
-// `firstpass replay` bypasses the record gate, which is where every other
+// `reviewer replay` bypasses the record gate, which is where every other
 // candidate learns that a pass has already reviewed it. So a replay used to
 // send the reviewer in blind.
 //
@@ -19,9 +19,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/angelov-todor/firstpass/internal/ghpr"
-	"github.com/angelov-todor/firstpass/internal/review"
-	"github.com/angelov-todor/firstpass/internal/store"
+	"github.com/angelov-todor/reviewer/internal/ghpr"
+	"github.com/angelov-todor/reviewer/internal/review"
+	"github.com/angelov-todor/reviewer/internal/store"
 )
 
 // replayRecord is a record for the replay ref with every field populated.
@@ -200,10 +200,10 @@ func TestReplayOfASkippedRecordIsAFirstPass(t *testing.T) {
 // once a replay started carrying a previous pass. This one carries one.
 //
 // The asymmetry is deliberate. A replay is an explicit question -- "what does
-// firstpass make of this pull request now" -- so the fresh answer is what the
+// the service make of this pull request now" -- so the fresh answer is what the
 // operator asked for, and a stale "reviewed" detail left standing over it is
 // the misreading that test was written for. A re-post asks for a review, and
-// firstpass declining to give one is not worth overwriting history with.
+// the service declining to give one is not worth overwriting history with.
 func TestReplayOfAMergedPullRequestStillRecordsAFreshDecision(t *testing.T) {
 	h := newHarness(t, nil)
 	seeded := replayRecord(store.OutcomeReviewed, oldSHA)

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/angelov-todor/firstpass/internal/runner"
+	"github.com/angelov-todor/reviewer/internal/runner"
 )
 
 // TestTheCommandLineStaysWithinTheOperatingSystemsLimit is the assertion that
@@ -32,7 +32,7 @@ func TestTheCommandLineStaysWithinTheOperatingSystemsLimit(t *testing.T) {
 			Key:    "example-org/some-service#100",
 			URL:    "https://github.com/example-org/some-service/pull/100",
 			Diff:   strings.Repeat("+ a plausible line of a unified diff, about sixty characters\n", maxDiff/60),
-			Status: "not reviewed by firstpass (skipped_author); nothing else will look at it",
+			Status: "not reviewed by the service (skipped_author); nothing else will look at it",
 			// Alternate, so both branches of the note contribute.
 			Truncated: i == 0,
 		})

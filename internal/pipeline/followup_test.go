@@ -15,10 +15,10 @@ import (
 
 	bolt "go.etcd.io/bbolt"
 
-	"github.com/angelov-todor/firstpass/internal/chat"
-	"github.com/angelov-todor/firstpass/internal/ghpr"
-	"github.com/angelov-todor/firstpass/internal/review"
-	"github.com/angelov-todor/firstpass/internal/store"
+	"github.com/angelov-todor/reviewer/internal/chat"
+	"github.com/angelov-todor/reviewer/internal/ghpr"
+	"github.com/angelov-todor/reviewer/internal/review"
+	"github.com/angelov-todor/reviewer/internal/store"
 )
 
 // ---- Finding 1: a failed replay must not destroy the dedupe record ----
@@ -202,7 +202,7 @@ func TestReviewOneIsNotExpiredByAStalePendingEntry(t *testing.T) {
 
 // expirePending sits below the pause gate, so nothing expires *while* paused.
 // But it measures age from Pending.FirstSeen, which hold never refreshed, so
-// the first sweep after `firstpass resume` found every parked ref older than
+// the first sweep after `reviewer resume` found every parked ref older than
 // pending_max_age and expired the lot -- exactly the outcome the pause exists
 // to prevent. The old test asserted only during the paused sweep.
 func TestPauseDoesNotExpirePendingAfterResume(t *testing.T) {
@@ -233,7 +233,7 @@ func TestPauseDoesNotExpirePendingAfterResume(t *testing.T) {
 		}
 	}
 
-	// `firstpass resume`.
+	// `reviewer resume`.
 	if err := os.Remove(h.cfg.PauseFile()); err != nil {
 		t.Fatal(err)
 	}

@@ -20,7 +20,7 @@ func writeConfig(t *testing.T, body string) string {
 // real damage rather than a hypothetical one.
 //
 // state_dir is top-level. Written under `paths:` it parses cleanly, sets
-// nothing, and leaves firstpass on the default state directory. During a
+// nothing, and leaves the service on the default state directory. During a
 // diagnostic session a config written specifically to isolate a test run from
 // production was accepted exactly that way: `status` then reported the
 // production watermark and all 61 production review records, and a review run
@@ -38,7 +38,7 @@ paths:
 	_, err := Load(p)
 	if err == nil {
 		t.Fatal("state_dir under paths: must be rejected, not silently ignored while " +
-			"firstpass keeps using the default state directory")
+			"the service keeps using the default state directory")
 	}
 	if !strings.Contains(err.Error(), "state_dir") {
 		t.Errorf("the error must name the offending key, got: %v", err)
@@ -92,9 +92,9 @@ func TestLoadAcceptsAnEmptyFile(t *testing.T) {
 // decoding.
 //
 // Strictness is right for the commands that act: a key in the wrong place
-// silently keeps its default, and firstpass acting on a configuration the
+// silently keeps its default, and the service acting on a configuration the
 // operator does not believe it has is the failure worth being loud about. It
-// is not right for `firstpass pause`, which needs state_dir and nothing else.
+// is not right for `reviewer pause`, which needs state_dir and nothing else.
 // A typo in some unrelated key must not take away the operator's ability to
 // stop a live sweep that is posting comments to colleagues' pull requests.
 func TestLoadLenientKeepsTheKillSwitchReachable(t *testing.T) {

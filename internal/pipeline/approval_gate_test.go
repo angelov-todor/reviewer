@@ -5,11 +5,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/angelov-todor/firstpass/internal/chat"
-	"github.com/angelov-todor/firstpass/internal/ghpr"
-	"github.com/angelov-todor/firstpass/internal/review"
-	"github.com/angelov-todor/firstpass/internal/runner"
-	"github.com/angelov-todor/firstpass/internal/store"
+	"github.com/angelov-todor/reviewer/internal/chat"
+	"github.com/angelov-todor/reviewer/internal/ghpr"
+	"github.com/angelov-todor/reviewer/internal/review"
+	"github.com/angelov-todor/reviewer/internal/runner"
+	"github.com/angelov-todor/reviewer/internal/store"
 )
 
 // gateHarness is verdictHarness with the feedback reply under the test's
@@ -39,12 +39,12 @@ func feedbackWith(decision string) runner.Result {
 // TestNoApprovalOverAnOutstandingRequestForChanges is the gate that matters
 // most to a colleague.
 //
-// firstpass submits reviews under the operator's own GitHub identity. An
+// the service submits reviews under the operator's own GitHub identity. An
 // approval landing on a pull request a teammate has asked for changes on does
 // not read as "the automation is content" -- it reads as the operator clearing
 // somebody else's block. The reviewer's judgement about the code is not being
 // second-guessed here; turning that judgement into an approving review on
-// GitHub is a different act, and this is firstpass declining to perform it.
+// GitHub is a different act, and this is the service declining to perform it.
 func TestNoApprovalOverAnOutstandingRequestForChanges(t *testing.T) {
 	h, f := gateHarness(t, review.VerdictApprove, feedbackWith("CHANGES_REQUESTED"))
 
@@ -86,7 +86,7 @@ func TestNoApprovalOverAnOutstandingRequestForChanges(t *testing.T) {
 // seconds, two pull requests were reviewed without their feedback lists, both
 // had their approvals withheld, and both were recorded `reviewed` -- which is
 // terminal. So a colleague's pull request was left permanently unapproved,
-// carrying a comment about firstpass's own limitation, with nothing that would
+// carrying a comment about the service's own limitation, with nothing that would
 // ever try again.
 //
 // Retrying just the gate after the review was the tempting fix and is wrong:
@@ -182,7 +182,7 @@ func TestATruncatedListAlsoWithholdsThePostingClaim(t *testing.T) {
 	//
 	// So: the pre-review list is truncated AND hides an item the operator had
 	// already authored. Without the guard the baseline reads as zero, the
-	// after-count reads as one, and firstpass concludes this review posted
+	// after-count reads as one, and the service concludes this review posted
 	// something -- stating as fact, on a colleague's pull request, that the
 	// findings are there.
 	truncatedHidingOwnComment := `{"data":{"repository":{"pullRequest":{` +
@@ -312,13 +312,13 @@ func TestADryRunPostsNothingWhenAnApprovalIsWithheld(t *testing.T) {
 // The command posted the findings itself. Now posting is an instruction in the
 // prompt, and the skills a general prompt selects do not all post: the .NET
 // review skill produces a report and posts nothing at all. So a live review
-// can finish, print `findings`, post nothing, and firstpass would submit a
+// can finish, print `findings`, post nothing, and the service would submit a
 // review telling a colleague "the findings are posted as inline comments on
 // this pull request" — sending them to hunt for comments that do not exist,
 // and leaving them to conclude the tool is broken or, worse, that the review
 // found nothing.
 //
-// The check is a count, not a search: firstpass never sees a finding, so it
+// The check is a count, not a search: the service never sees a finding, so it
 // cannot look for one. It asks how many items the operator had authored on the
 // pull request before the review and again afterwards.
 func TestABodyDoesNotClaimFindingsWerePostedWhenTheyWereNot(t *testing.T) {

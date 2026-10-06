@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/angelov-todor/firstpass/internal/config"
-	"github.com/angelov-todor/firstpass/internal/ghpr"
-	"github.com/angelov-todor/firstpass/internal/runner"
+	"github.com/angelov-todor/reviewer/internal/config"
+	"github.com/angelov-todor/reviewer/internal/ghpr"
+	"github.com/angelov-todor/reviewer/internal/runner"
 )
 
 // Two pull requests, one of them a bot's, in one repository.
@@ -41,7 +41,7 @@ func TestCheckSourceReportsWhatCameBack(t *testing.T) {
 }
 
 // A full page is a failure and not a note. It is the one outcome the operator
-// has to act on: pull requests exist that firstpass will never see until the
+// has to act on: pull requests exist that the service will never see until the
 // noisiest authors are excluded, and reporting it as a pass would leave that
 // invisible.
 func TestCheckSourceFailsOnAFullPage(t *testing.T) {

@@ -231,7 +231,7 @@ func TestMessageRecordSurvivesReopen(t *testing.T) {
 	}
 }
 
-// The messages bucket was added after firstpass was already running in
+// The messages bucket was added after the service was already running in
 // production, so the live database on disk does not have it. Opening such a
 // database must create the bucket and leave every existing record alone --
 // and Store.get dereferences tx.Bucket() without a nil check, so an absent
@@ -239,7 +239,7 @@ func TestMessageRecordSurvivesReopen(t *testing.T) {
 func TestOpenUpgradesADatabaseWithoutTheMessagesBucket(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "state.db")
 
-	// Exactly what an older firstpass left behind: the three original buckets
+	// Exactly what an older the service left behind: the three original buckets
 	// and a review record, and no messages bucket at all.
 	legacy, err := bolt.Open(path, 0o600, &bolt.Options{Timeout: 5 * time.Second})
 	if err != nil {
@@ -312,7 +312,7 @@ func TestOpenUpgradesADatabaseWithoutTheMessagesBucket(t *testing.T) {
 // Costs the five-second lock timeout to run, which is the whole point of it:
 // there is no other way to reach the branch.
 func TestOpenSaysWhoHasItWhenTheStoreIsLocked(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "firstpass.db")
+	path := filepath.Join(t.TempDir(), "reviewer.db")
 	held, err := Open(path)
 	if err != nil {
 		t.Fatal(err)
@@ -323,7 +323,7 @@ func TestOpenSaysWhoHasItWhenTheStoreIsLocked(t *testing.T) {
 	if err == nil {
 		t.Fatal("a second Open must not succeed while the first holds the lock")
 	}
-	if !strings.Contains(err.Error(), "already open by another firstpass") {
+	if !strings.Contains(err.Error(), "already open by another the service") {
 		t.Errorf("the error must say what is wrong and what to do: %v", err)
 	}
 	if !strings.Contains(err.Error(), path) {

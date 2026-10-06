@@ -4,14 +4,14 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/angelov-todor/firstpass/internal/chat"
-	"github.com/angelov-todor/firstpass/internal/config"
-	"github.com/angelov-todor/firstpass/internal/ghpr"
-	"github.com/angelov-todor/firstpass/internal/pipeline"
-	"github.com/angelov-todor/firstpass/internal/review"
-	"github.com/angelov-todor/firstpass/internal/runner"
-	"github.com/angelov-todor/firstpass/internal/store"
-	"github.com/angelov-todor/firstpass/internal/worktree"
+	"github.com/angelov-todor/reviewer/internal/chat"
+	"github.com/angelov-todor/reviewer/internal/config"
+	"github.com/angelov-todor/reviewer/internal/ghpr"
+	"github.com/angelov-todor/reviewer/internal/pipeline"
+	"github.com/angelov-todor/reviewer/internal/review"
+	"github.com/angelov-todor/reviewer/internal/runner"
+	"github.com/angelov-todor/reviewer/internal/store"
+	"github.com/angelov-todor/reviewer/internal/worktree"
 )
 
 type app struct {

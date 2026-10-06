@@ -14,8 +14,8 @@ import "strings"
 // one.
 //
 // Without it, an account that ran out of tokens mid-sweep stranded up to three
-// pull requests per sweep, each needing a hand-typed `firstpass replay`. The
-// operator's own defence was to notice and run `firstpass pause`, which worked
+// pull requests per sweep, each needing a hand-typed `reviewer replay`. The
+// operator's own defence was to notice and run `reviewer pause`, which worked
 // and should not have been necessary.
 type UsageLimitError struct {
 	Err error
@@ -61,7 +61,7 @@ var usageLimitPhrases = []string{
 //
 // Both streams are searched. The CLI writes its limit notice to stderr when it
 // refuses outright, and into stdout when it stops part-way through a session,
-// and firstpass has no way to know in advance which happened.
+// and the service has no way to know in advance which happened.
 func UsageLimitPhrase(stdout, stderr []byte) string {
 	hay := strings.ToLower(string(stdout) + "\n" + string(stderr))
 	for _, p := range usageLimitPhrases {

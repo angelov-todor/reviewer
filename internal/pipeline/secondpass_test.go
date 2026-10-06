@@ -14,10 +14,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/angelov-todor/firstpass/internal/chat"
-	"github.com/angelov-todor/firstpass/internal/ghpr"
-	"github.com/angelov-todor/firstpass/internal/review"
-	"github.com/angelov-todor/firstpass/internal/store"
+	"github.com/angelov-todor/reviewer/internal/chat"
+	"github.com/angelov-todor/reviewer/internal/ghpr"
+	"github.com/angelov-todor/reviewer/internal/review"
+	"github.com/angelov-todor/reviewer/internal/store"
 )
 
 const (
@@ -241,7 +241,7 @@ func TestARefFromPendingIsNeverASecondPass(t *testing.T) {
 
 // needs_attention means a review died mid-post and comments may be half
 // posted. A re-post is not consent to duplicate them, so it still takes an
-// explicit `firstpass replay` -- whatever the head SHA says.
+// explicit `reviewer replay` -- whatever the head SHA says.
 func TestNeedsAttentionIsNeverRetriedByARepost(t *testing.T) {
 	h := newHarness(t, []chat.Message{msg(rePost, "any news on "+prURL("aex-balances", 12))})
 	h.seedWatermark(t)

@@ -1,4 +1,4 @@
-module github.com/angelov-todor/firstpass
+module github.com/angelov-todor/reviewer
 
 go 1.24
 

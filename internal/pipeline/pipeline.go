@@ -14,12 +14,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/angelov-todor/firstpass/internal/chat"
-	"github.com/angelov-todor/firstpass/internal/config"
-	"github.com/angelov-todor/firstpass/internal/ghpr"
-	"github.com/angelov-todor/firstpass/internal/prref"
-	"github.com/angelov-todor/firstpass/internal/review"
-	"github.com/angelov-todor/firstpass/internal/store"
+	"github.com/angelov-todor/reviewer/internal/chat"
+	"github.com/angelov-todor/reviewer/internal/config"
+	"github.com/angelov-todor/reviewer/internal/ghpr"
+	"github.com/angelov-todor/reviewer/internal/prref"
+	"github.com/angelov-todor/reviewer/internal/review"
+	"github.com/angelov-todor/reviewer/internal/store"
 )
 
 // The five seams to the outside world. Each has a fake in the tests, which is
@@ -31,12 +31,12 @@ type (
 		// foundSince means messages were missed; see Sweep.
 		Fetch(ctx context.Context, sinceName string, limit int) (msgs []chat.Message, foundSince bool, err error)
 	}
-	// PRClient is the gh seam: what firstpass asks GitHub about a pull
+	// PRClient is the gh seam: what the service asks GitHub about a pull
 	// request, plus the one thing it writes back.
 	PRClient interface {
 		Inspect(ctx context.Context, ref prref.PRRef) (ghpr.PRInfo, error)
 		// FetchFeedback enumerates the feedback already on a pull request.
-		// firstpass cannot judge whether a point was addressed -- that needs
+		// the service cannot judge whether a point was addressed -- that needs
 		// the code -- so its job is to make sure the reviewer is shown every
 		// point that exists, and to refuse an approval when it could not.
 		FetchFeedback(ctx context.Context, ref prref.PRRef) (ghpr.Feedback, error)
@@ -45,7 +45,7 @@ type (
 		PRDiff(ctx context.Context, ref prref.PRRef) (diff string, truncated bool, err error)
 		// SubmitReview submits the verdict of a finished review. It is on
 		// this interface rather than left to the prompt so the action is
-		// firstpass's: recorded in the store, visible in status, and
+		// the service's: recorded in the store, visible in status, and
 		// exercised by these tests without a subprocess.
 		SubmitReview(ctx context.Context, ref prref.PRRef, verdict, body string) error
 		// Discover lists pull requests a configured source offers. One
@@ -100,7 +100,7 @@ const inFlightReason = "previous run died mid-review"
 
 // ExitUnknown is recorded as a review's exit code when the review produced no
 // exit status at all -- killed by its deadline, or never started. A persisted
-// zero would read as a clean success in `firstpass status`.
+// zero would read as a clean success in `reviewer status`.
 const ExitUnknown = -1
 
 // The verdict bodies.
@@ -143,7 +143,7 @@ func verdictBodyApprove(pass int) string {
 // verdictBodyFindings is submitted when the reviewer raised something blocking
 // or important. Suggestions alone are an approval.
 //
-// posted says whether firstpass confirmed the findings actually reached the
+// posted says whether the service confirmed the findings actually reached the
 // pull request, and the body says only what is true of the run it describes.
 // It used to assert that the findings were posted, which was safe while the
 // slash command did the posting and became a claim that could be false the
@@ -153,11 +153,11 @@ func verdictBodyApprove(pass int) string {
 // Where the hedge lands matters. A reader needs to know whether to go looking
 // for the findings; sending them hunting for a comment that was never posted
 // wastes their time and makes the tool look broken, which is worse than
-// admitting firstpass could not confirm it.
+// admitting the service could not confirm it.
 func verdictBodyFindings(pass int, posted bool) string {
 	b := "Findings are posted in a comment on this pull request."
 	if !posted {
-		b = "Findings were raised, but firstpass could not confirm they " +
+		b = "Findings were raised, but the service could not confirm they " +
 			"were posted here. If you cannot see them, ask the operator for the review report " +
 			"rather than assuming the review found nothing."
 	}
@@ -170,7 +170,7 @@ func verdictBodyFindings(pass int, posted bool) string {
 }
 
 // verdictBodyWithheld is submitted when the reviewer decided approve and
-// firstpass declined to turn that into an approving review. It says so
+// the service declined to turn that into an approving review. It says so
 // plainly rather than dressing it up as findings: the review found nothing to
 // change, and it is deliberately not approving anyway.
 func verdictBodyWithheld(pass int, reason string) string {
@@ -202,7 +202,7 @@ func (p *Pipeline) siblingContext(ctx context.Context, c candidate, st *sweepSta
 		// outside the allowlist must never be queried, let alone cloned -- and
 		// a sibling is a query. The chat space is a chat room: a link to an
 		// unrelated repository turns up in it eventually, and without this
-		// firstpass would run `gh pr diff` against that repository and paste
+		// the service would run `gh pr diff` against that repository and paste
 		// its contents into a prompt.
 		if !p.Cfg.OwnerAllowed(ref.Owner) || p.Cfg.RepoDenied(ref.Owner, ref.Repo) {
 			p.Log.Warn("a pull request posted alongside this one is outside allow_owners; "+
@@ -234,10 +234,10 @@ func (p *Pipeline) siblingContext(ctx context.Context, c candidate, st *sweepSta
 	return out
 }
 
-// siblingStatus reports what firstpass's own records say about a sibling.
+// siblingStatus reports what the service's own records say about a sibling.
 //
 // It reports, rather than predicts. The first version answered a boolean --
-// "firstpass is reviewing this one separately" -- computed as "the record is
+// "the service is reviewing this one separately" -- computed as "the record is
 // not a completed review", which is true of every skipped outcome: a draft,
 // one of the operator's own pull requests, a merged one. So the reviewer was
 // told somebody else would handle exactly the pull requests nobody would look
@@ -249,15 +249,15 @@ func (p *Pipeline) siblingStatus(ref prref.PRRef) string {
 	rec, ok, err := p.Store.Review(ref.Key())
 	switch {
 	case err != nil:
-		return "unknown -- firstpass could not read its own record"
+		return "unknown -- the service could not read its own record"
 	case !ok:
 		return ""
 	}
 	switch rec.Outcome {
 	case store.OutcomeReviewed:
-		return "already reviewed by firstpass; its comments are on it"
+		return "already reviewed by the service; its comments are on it"
 	case store.OutcomeInFlight:
-		return "being reviewed by firstpass right now, in its own separate review"
+		return "being reviewed by the service right now, in its own separate review"
 	case store.OutcomeNeedsAttention:
 		return "a review of it did not finish; nothing else is looking at it until somebody asks"
 	default:
@@ -265,7 +265,7 @@ func (p *Pipeline) siblingStatus(ref prref.PRRef) string {
 		// request, an owner outside the allowlist, an expired backlog entry.
 		// Nothing else will look at it, and that is the case where a problem
 		// spotted here is worth mentioning.
-		return "not reviewed by firstpass (" + string(rec.Outcome) + "); nothing else will look at it"
+		return "not reviewed by the service (" + string(rec.Outcome) + "); nothing else will look at it"
 	}
 }
 
@@ -282,9 +282,9 @@ func (p *Pipeline) siblingStatus(ref prref.PRRef) string {
 // A dry run is always safe, because it posts nothing by construction.
 //
 // Anything unverifiable is treated as unsafe. That is the conservative
-// direction: an unnecessary needs_attention costs the operator one `firstpass
+// direction: an unnecessary needs_attention costs the operator one `the service
 // replay`, while a wrong deferral costs a colleague a duplicated comment set
-// and costs firstpass their trust.
+// and costs the service their trust.
 func (p *Pipeline) usageLimitIsSafeToRetry(ctx context.Context, ref prref.PRRef,
 	before ghpr.Feedback, gate verdictGate) (bool, string) {
 
@@ -325,7 +325,7 @@ func ownFeedbackCount(f ghpr.Feedback, login string) int {
 // findingsReachedThePR reports whether the operator's item count on the pull
 // request went up during the review.
 //
-// A count rather than a search for particular text: firstpass never sees a
+// A count rather than a search for particular text: the service never sees a
 // finding, so it cannot look for one. What it can establish is whether
 // anything at all arrived under the operator's name while the review ran,
 // which is exactly the difference between a reviewer that posted and one that
@@ -334,7 +334,7 @@ func ownFeedbackCount(f ghpr.Feedback, login string) int {
 // False on any failure, and that direction is deliberate. Unconfirmed is not
 // the same as confirmed-absent, but the only thing this value controls is
 // whether the verdict body asserts the findings are on the pull request. An
-// assertion firstpass cannot support is worse than a hedge, so the hedge is
+// assertion the service cannot support is worse than a hedge, so the hedge is
 // what an unverifiable answer produces.
 func (p *Pipeline) findingsReachedThePR(ctx context.Context, ref prref.PRRef, before int) bool {
 	posted, known := p.postedSince(ctx, ref, before)
@@ -391,15 +391,15 @@ func toPriorFeedback(f ghpr.Feedback) *review.PriorFeedback {
 }
 
 // noVerdictDetail is recorded when a review finished but printed no verdict
-// line firstpass recognises. Nothing is submitted and nothing is guessed: an
+// line the service recognises. Nothing is submitted and nothing is guessed: an
 // approval nobody chose is the one outcome this feature exists to prevent.
 //
 // It is dry-run aware for the same reason the killed-review detail is (see
 // handle): a dry run withholds --comment and therefore cannot have posted
 // anything, and a detail that says otherwise sends the operator looking for
-// damage that cannot exist. `firstpass status` shows this string verbatim.
+// damage that cannot exist. `reviewer status` shows this string verbatim.
 func noVerdictDetail(dryRun bool) string {
-	const tail = "printed no " + review.VerdictMarker + " line firstpass recognises, so no " +
+	const tail = "printed no " + review.VerdictMarker + " line the service recognises, so no " +
 		"verdict was submitted and none was guessed"
 	if dryRun {
 		return "the review finished, and this was a dry run so nothing was posted; it " + tail
@@ -410,7 +410,7 @@ func noVerdictDetail(dryRun bool) string {
 // inFlightDetail is the human-facing note stored on a recovered record.
 func inFlightDetail(ref prref.PRRef) string {
 	return "a previous run died mid-review, so comments may already be posted; " +
-		"run `firstpass replay " + ref.URL() + "` to review it again deliberately"
+		"run `reviewer replay " + ref.URL() + "` to review it again deliberately"
 }
 
 // secondPassDue reports whether an existing record plus this candidate's
@@ -425,7 +425,7 @@ func inFlightDetail(ref prref.PRRef) string {
 // needs_attention in particular does not qualify. It means a review died
 // mid-post, so comments may be half posted on a colleague's pull request, and
 // an automatic retry risks a second copy of each of them. A re-post is not
-// consent to that; `firstpass replay` is. Every skipped outcome fails this
+// consent to that; `reviewer replay` is. Every skipped outcome fails this
 // too, for the plainer reason that nothing was ever reviewed: there is no
 // first pass for a second one to follow.
 //
@@ -436,7 +436,7 @@ func inFlightDetail(ref prref.PRRef) string {
 // "unknown" as "different" would be double-posting on a colleague's pull
 // request on the strength of a missing field. A pull request reviewed off the
 // pending backlog carries no trigger message either, so the pairing is the
-// usual one: no first-pass evidence, no automatic second pass. `firstpass
+// usual one: no first-pass evidence, no automatic second pass. `the service
 // replay` still works, and says the operator meant it.
 //
 // Condition 2: the trigger is a different, non-empty chat message, posted
@@ -534,7 +534,7 @@ func (p *Pipeline) noteRetrigger(prev store.Review, c candidate, opts Options) e
 	// parks one, and if its re-post then turns out to have nothing new this
 	// branch is where it lands -- above expirePending, and on every later
 	// sweep the record gate skips it before the expiry can ever run. Left
-	// behind, the row sits in `firstpass status` for good. This is the same
+	// behind, the row sits in `reviewer status` for good. This is the same
 	// leak the parked provenance fixed, reached by a different branch.
 	if err := p.Store.DeletePending(prev.Key); err != nil {
 		p.Log.Error("delete pending", "key", prev.Key, "err", err)
@@ -606,7 +606,7 @@ type Options struct {
 	// handle:
 	//
 	//   - The existing review record no longer stops the review: getting past
-	//     the dedupe is the whole point of `firstpass replay`.
+	//     the dedupe is the whole point of `reviewer replay`.
 	//   - expirePending does not run: the operator asked for this one, so a
 	//     stale backlog entry must not retire it out from under them.
 	//   - No pending entry is written. The operator is watching the result, so
@@ -692,7 +692,7 @@ type candidate struct {
 	// request, carried in rather than read by handle. Only ReviewOne sets it:
 	// a replay bypasses the record gate, which is where every other candidate
 	// learns about its own history, so without this a replay would review
-	// blind -- and the documented use of `firstpass replay` is a
+	// blind -- and the documented use of `reviewer replay` is a
 	// needs_attention pull request, the one case where comments may already be
 	// half posted.
 	previous *store.Review
@@ -920,7 +920,7 @@ func (p *Pipeline) setWatermark(m chat.Message) error {
 // the store rather than from the candidate list is what makes the recovery
 // reliable: the per-candidate gate in handle only fires if the ref happens to
 // reappear as a candidate, which stops happening once the fetch window has
-// moved past the triggering message, and never happens at all for a `firstpass
+// moved past the triggering message, and never happens at all for a `the service
 // replay` that died mid-review -- leaving the record in_flight forever and the
 // PR invisible in every report.
 func (p *Pipeline) recoverInFlight(rep *SweepReport, opts Options) error {
@@ -1141,7 +1141,7 @@ func (p *Pipeline) handle(ctx context.Context, c candidate, rep *SweepReport, st
 	// before any other rule can send this PR back through a review.
 	//
 	// A replay skips this gate rather than deleting the record before calling
-	// handle. Getting past the dedupe is the whole point of `firstpass
+	// handle. Getting past the dedupe is the whole point of `the service
 	// replay`, but destroying the record before knowing whether a review will
 	// actually happen is how a failed replay used to leave a PR with no record
 	// at all -- and the next sweep then reviewed it as if it were new, posting
@@ -1222,7 +1222,7 @@ func (p *Pipeline) handle(ctx context.Context, c candidate, rep *SweepReport, st
 	//     shifts FirstSeen forward by the paused interval as it accrues, so
 	//     the paused time -- and only the paused time -- is excluded from the
 	//     age, rather than the expiry merely being deferred to the first sweep
-	//     after `firstpass resume`, which is what a pause longer than
+	//     after `reviewer resume`, which is what a pause longer than
 	//     PendingMaxAge used to do to every parked ref at once. Pre-pause age
 	//     survives: a ref that had waited six days before the pause has still
 	//     waited six days after it.
@@ -1298,7 +1298,7 @@ func (p *Pipeline) handle(ctx context.Context, c candidate, rep *SweepReport, st
 	// previous record now -- so the reviewer can be told a pass has been here
 	// -- and without this guard a replay of the very commit that was already
 	// reviewed would be skipped as "no new commits", which is the one thing
-	// `firstpass replay` must never do: getting past the dedupe is the whole
+	// `reviewer replay` must never do: getting past the dedupe is the whole
 	// point of the command, and the operator named this pull request.
 	//
 	// The question is asked of every commit any pass has reviewed, not just
@@ -1360,7 +1360,7 @@ func (p *Pipeline) handle(ctx context.Context, c candidate, rep *SweepReport, st
 		// a review that can never approve and a record that says `reviewed`,
 		// so the pull request is finished with. A GitHub blip lasting ninety
 		// seconds thereby left a colleague's pull request permanently
-		// unapproved, carrying a comment about firstpass's own limitation, and
+		// unapproved, carrying a comment about the service's own limitation, and
 		// with no mechanism to try again.
 		//
 		// Retrying just the gate after the review was the tempting fix and is
@@ -1436,7 +1436,7 @@ func (p *Pipeline) handle(ctx context.Context, c candidate, rep *SweepReport, st
 	// was never going to run.
 	sibs := p.siblingContext(ctx, c, st)
 
-	// A bare clone of a whole repository is the longest subprocess firstpass
+	// A bare clone of a whole repository is the longest subprocess the service
 	// runs, and on Windows a credential prompt can stall it indefinitely.
 	p.progress(Event{Stage: StagePreparingWorktree, Ref: ref, Index: idx, Total: total})
 	wctx, cancelPrepare := context.WithTimeout(ctx, p.Cfg.CloneTimeout.D())
@@ -1544,7 +1544,7 @@ func (p *Pipeline) handle(ctx context.Context, c candidate, rep *SweepReport, st
 	// reports and posts nothing. A review that finishes, prints `findings` and
 	// posts nothing used to be impossible and is now merely quiet.
 	//
-	// Counted against the baseline firstpass already has: it fetched the
+	// Counted against the baseline the service already has: it fetched the
 	// existing feedback before the review, so it knows how many items the
 	// operator had authored beforehand. Live only -- a dry run posts nothing by
 	// design and there is nothing to verify.
@@ -1700,26 +1700,26 @@ func (p *Pipeline) handle(ctx context.Context, c candidate, rep *SweepReport, st
 //     the detail says the line was missing. Guessing here would approve a
 //     colleague's pull request on the strength of silence.
 //   - a submission that failed: the verdict is left unset and the error goes
-//     in the detail, where `firstpass status` shows it. Not retried
+//     in the detail, where `reviewer status` shows it. Not retried
 //     automatically, and deliberately not an error the caller sees: the review
 //     succeeded.
 //
 // verdictGate carries the two facts that can override an approve.
 //
-// They are firstpass's to decide, not the reviewer's, because they are about
-// what firstpass knows rather than about the code: whether a human is already
+// They are the service's to decide, not the reviewer's, because they are about
+// what the service knows rather than about the code: whether a human is already
 // blocking, and whether the list of prior feedback it showed the reviewer was
-// complete. An approval that rests on evidence firstpass failed to gather is
+// complete. An approval that rests on evidence the service failed to gather is
 // worse than no approval at all, and one submitted over a colleague's request
 // for changes is worse still -- it reads, under the operator's own identity,
 // as clearing somebody else's block.
 type verdictGate struct {
 	feedbackUsable   bool
 	changesRequested bool
-	// findingsPosted records whether firstpass confirmed that this review's
+	// findingsPosted records whether the service confirmed that this review's
 	// findings actually reached the pull request.
 	//
-	// Posting stopped being something firstpass could take for granted when the
+	// Posting stopped being something the service could take for granted when the
 	// slash command went away. The command posted; now it is an instruction in
 	// the prompt, and the skills a general prompt selects do not all post --
 	// the .NET review skill produces a report and posts nothing at all. So
@@ -1727,7 +1727,7 @@ type verdictGate struct {
 	// the verdict body stated as fact, became a claim that can be false on a
 	// colleague's pull request.
 	//
-	// Confirmed by counting, not by trusting: firstpass already fetches the
+	// Confirmed by counting, not by trusting: the service already fetches the
 	// existing feedback before the review, so it knows how many items were
 	// authored by the operator beforehand and can look again afterwards.
 	findingsPosted bool
@@ -1741,7 +1741,7 @@ func (g verdictGate) withheldReason() string {
 		return "a reviewer has requested changes on this pull request and that request is still " +
 			"outstanding"
 	case !g.feedbackUsable:
-		return "firstpass could not read the full list of feedback already on this pull request, " +
+		return "the service could not read the full list of feedback already on this pull request, " +
 			"so it cannot confirm that everything raised has been addressed"
 	}
 	return ""
@@ -1755,7 +1755,7 @@ func (p *Pipeline) submitVerdict(ctx context.Context, rec *store.Review, ref prr
 	switch v {
 	case review.VerdictApprove:
 		if reason := gate.withheldReason(); reason != "" {
-			// The reviewer read the code and decided approve. firstpass is not
+			// The reviewer read the code and decided approve. the service is not
 			// second-guessing that judgement -- it is declining to turn it into
 			// an approving review on GitHub, which is a different act.
 			p.Log.Warn("approval withheld", "key", ref.Key(), "reason", reason)
@@ -1780,7 +1780,7 @@ func (p *Pipeline) submitVerdict(ctx context.Context, rec *store.Review, ref prr
 		// phase: unknown says the reviewer produced no verdict at all, so
 		// there was never anything to submit and a live run would have
 		// submitted nothing either; unset says there was a verdict and
-		// firstpass did not submit it (a dry run, or a submission that
+		// the service did not submit it (a dry run, or a submission that
 		// failed). Neither is ever a positive value, which is the invariant
 		// that matters: store.Verdict only ever holds approved or findings
 		// when a submission actually succeeded.
@@ -1818,12 +1818,12 @@ func (p *Pipeline) ReviewOne(ctx context.Context, ref prref.PRRef, opts Options)
 	// already be partially posted" detail -- and then park the ref in pending,
 	// which candidates() re-offers on every sweep regardless of the watermark.
 	// The operator saw "defer / paused" and "0 reviewed", read that as
-	// "nothing happened", and the first sweep after `firstpass resume` reviewed
+	// "nothing happened", and the first sweep after `reviewer resume` reviewed
 	// it with no further request -- double-posting on top of whatever the
 	// earlier run had already left on a colleague's PR.
 	if p.paused() {
 		return Decision{Ref: ref}, fmt.Errorf(
-			"firstpass is paused (%s), so nothing was changed: run `firstpass resume` before replaying %s",
+			"the service is paused (%s), so nothing was changed: run `reviewer resume` before replaying %s",
 			p.Cfg.PauseFile(), ref.URL())
 	}
 
@@ -1916,32 +1916,32 @@ func (p *Pipeline) terminal(ref prref.PRRef, o store.Outcome, trigger, detail st
 // Skipping is still right at every gate that calls this: a merged pull
 // request, or one now attributed to you, must not be reviewed. What is not
 // right is overwriting the record while doing it. That record is the only
-// evidence of what firstpass did here -- the commit it reviewed, the verdict
+// evidence of what the service did here -- the commit it reviewed, the verdict
 // it submitted under the operator's own GitHub identity, and which pass that
 // was -- and none of it is recoverable from anywhere else. A skip would
 // replace all of it with a description of GitHub's current state.
 //
 // Not rewriting, rather than rewriting while preserving those fields, because
-// the question the record answers is "what did firstpass do about this pull
+// the question the record answers is "what did the service do about this pull
 // request", and it already answers it correctly. Somebody merging the pull
-// request afterwards, or `github_login` changing under it, is not a firstpass
+// request afterwards, or `github_login` changing under it, is not the service
 // decision at all, and a record that said `skipped_state` with a reviewed
 // SHA and a submitted verdict hanging off it would be a state no other code
 // path can produce and no reader would know how to interpret.
 //
 // This applies only below the record gate. The owner allowlist and the deny
 // list sit *above* it and still record their refusal unconditionally: those
-// are firstpass's own decisions, they are the safety rails rather than a
+// are the service's own decisions, they are the safety rails rather than a
 // report of somebody else's action, and a candidate re-posted from a
 // disallowed owner never reaches the record read at all.
 //
 // A replay is unconditional too, and that asymmetry is deliberate. A replay
 // carries a previous record for the reviewer's sake, but the operator named
-// this pull request and asked what firstpass makes of it now, so the fresh
+// this pull request and asked what the service makes of it now, so the fresh
 // decision is the answer to a question that was actually asked -- and a stale
-// "reviewed" detail left standing over an explicit `firstpass replay` is what
+// "reviewed" detail left standing over an explicit `reviewer replay` is what
 // TestReviewOneTerminalSkipReplacesThePriorRecord exists to prevent. A re-post
-// asks for a review, not for a fresh verdict on whether firstpass should be
+// asks for a review, not for a fresh verdict on whether the service should be
 // reviewing, so declining it is not news worth overwriting history with.
 //
 // The pending entry is still deleted. That is housekeeping rather than

@@ -1,6 +1,6 @@
 package main
 
-// `gh pr review` is the first writing gh command firstpass runs. `gh auth
+// `gh pr review` is the first writing gh command the service runs. `gh auth
 // status` says the token is authenticated, which is not the same as allowed
 // to review, and the difference is only discovered after a twelve-minute
 // review has already run. These pin the read-only preflight -- including that
@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/angelov-todor/firstpass/internal/runner"
+	"github.com/angelov-todor/reviewer/internal/runner"
 )
 
 // ghAPIReply is what `gh api --include user` prints: the status line and the

@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/angelov-todor/firstpass/internal/chat"
-	"github.com/angelov-todor/firstpass/internal/config"
-	"github.com/angelov-todor/firstpass/internal/ghpr"
-	"github.com/angelov-todor/firstpass/internal/prref"
-	"github.com/angelov-todor/firstpass/internal/store"
+	"github.com/angelov-todor/reviewer/internal/chat"
+	"github.com/angelov-todor/reviewer/internal/config"
+	"github.com/angelov-todor/reviewer/internal/ghpr"
+	"github.com/angelov-todor/reviewer/internal/prref"
+	"github.com/angelov-todor/reviewer/internal/store"
 )
 
 func aSource() config.Source {
@@ -41,7 +41,7 @@ func sourceHarness(t *testing.T, msgs []chat.Message, offered ...ghpr.Found) *ha
 	h.prs.discovered = offered
 	h.cfg.Sources = []config.Source{aSource()}
 	h.apply()
-	// A source firstpass has been watching for a while, so these tests are
+	// A source the service has been watching for a while, so these tests are
 	// about what it offers rather than about the cold start. The cold start
 	// has its own tests below; without this every one of these would assert
 	// against a first sweep, which deliberately offers nothing.
@@ -49,7 +49,7 @@ func sourceHarness(t *testing.T, msgs []chat.Message, offered ...ghpr.Found) *ha
 	return h
 }
 
-// seedWatched records that firstpass started watching a source at the given
+// seedWatched records that the service started watching a source at the given
 // time, which is what a second and later sweep sees.
 func seedWatched(t *testing.T, h *harness, src config.Source, since time.Time) {
 	t.Helper()
@@ -176,7 +176,7 @@ func TestADiscoveredPullRequestIsReviewedAgainAfterAFollowUpCommit(t *testing.T)
 
 // A pull request nothing has touched since the review is not even inspected.
 // The gate before Inspect exists to keep discovery from spending a GitHub call
-// per pull request per sweep for no new information -- firstpass shares that
+// per pull request per sweep for no new information -- the service shares that
 // rate limit with the reviews themselves.
 func TestAQuietDiscoveredPullRequestCostsNoGitHubCall(t *testing.T) {
 	reviewedAt := time.Now()
@@ -201,7 +201,7 @@ func TestAQuietDiscoveredPullRequestCostsNoGitHubCall(t *testing.T) {
 }
 
 // A source is an addition to the chat space, never a replacement, so its
-// failure must not stop firstpass reviewing what the team actually posted.
+// failure must not stop the service reviewing what the team actually posted.
 func TestASourceFailureDoesNotStopTheSweep(t *testing.T) {
 	h := sourceHarness(t, []chat.Message{msg("spaces/A/messages/m1", prURL("aex-balances", 12))})
 	h.prs.discoverErr = errors.New("HTTP 403: secondary rate limit")
@@ -239,7 +239,7 @@ func TestBotsAreNotReviewed(t *testing.T) {
 	}
 }
 
-// The owner allowlist is what keeps firstpass off strangers' pull requests. It
+// The owner allowlist is what keeps the service off strangers' pull requests. It
 // is applied per candidate wherever the candidate came from, and again at
 // discovery so a misconfigured source reads as an empty result rather than as
 // a sweep full of refusals.
@@ -299,7 +299,7 @@ func TestASourceQueriesWhatItWasConfiguredWith(t *testing.T) {
 }
 
 // A chat source is declared in the config so the file names every place
-// firstpass looks. It is not searched: Sweep has already fetched its messages,
+// the service looks. It is not searched: Sweep has already fetched its messages,
 // with the watermark, the reactions and the sibling grouping that go with
 // them. Searching for it would be a second, wrong way to read the same space.
 func TestAChatSourceIsNotSearched(t *testing.T) {
@@ -360,7 +360,7 @@ func TestANewSourceReviewsNoneOfItsHistory(t *testing.T) {
 	if _, watched, err := h.st.SourceSince(aSource().ID(h.cfg.GithubLogin)); err != nil {
 		t.Fatal(err)
 	} else if !watched {
-		t.Error("the moment firstpass started watching must be recorded on the first sweep")
+		t.Error("the moment the service started watching must be recorded on the first sweep")
 	}
 }
 
@@ -376,7 +376,7 @@ func TestASourceReviewsWhatHappensAfterItStartsWatching(t *testing.T) {
 	seedWatched(t, h, aSource(), started)
 
 	h.prs.discovered = []ghpr.Found{
-		// Touched since firstpass started watching.
+		// Touched since the service started watching.
 		found("aex-balances", 12, started.Add(time.Minute)),
 		// Untouched since: still history.
 		found("aex-venue-service", 29, started.Add(-24*time.Hour)),

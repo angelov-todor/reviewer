@@ -1,7 +1,7 @@
 // Package review runs a code review over a prepared checkout by driving the
 // claude CLI with a general instruction rather than a slash command, so the
 // repository's own CLAUDE.md, whichever review skills the reviewer selects for
-// that repository, and the sonarqube MCP all apply without firstpass knowing
+// that repository, and the sonarqube MCP all apply without the service knowing
 // about any of them.
 //
 // The general instruction is the point: a slash command's own procedure
@@ -17,8 +17,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/angelov-todor/firstpass/internal/prref"
-	"github.com/angelov-todor/firstpass/internal/runner"
+	"github.com/angelov-todor/reviewer/internal/prref"
+	"github.com/angelov-todor/reviewer/internal/runner"
 )
 
 // Result is the outcome of one review run.
@@ -28,23 +28,23 @@ type Result struct {
 	Stdout     []byte
 	// Verdict is what the reviewer concluded about severity, parsed out of
 	// stdout. It is VerdictUnknown unless the reviewer printed one of the two
-	// accepted lines: firstpass never infers a verdict from anything else.
+	// accepted lines: the service never infers a verdict from anything else.
 	Verdict Verdict
 }
 
 // Verdict is the reviewer's own answer to "does this pull request need a human
 // to change something?".
 //
-// firstpass is deliberately ignorant of the findings themselves — the
-// reviewer posts them in a comment on the pull request and firstpass sees only
+// the service is deliberately ignorant of the findings themselves — the
+// reviewer posts them in a comment on the pull request and the service sees only
 // the exit code and stdout — so this one line is the whole channel between the
 // two.
-// Deciding the verdict is the reviewer's job; submitting it is firstpass's.
+// Deciding the verdict is the reviewer's job; submitting it is the service's.
 type Verdict string
 
 const (
 	// VerdictUnknown is the verdict of a review that printed no accepted
-	// verdict line. It is never resolved into one of the other two: firstpass
+	// verdict line. It is never resolved into one of the other two: the service
 	// submits nothing rather than guess, because the wrong guess is an
 	// approval on a colleague's pull request.
 	VerdictUnknown Verdict = "unknown"
@@ -58,13 +58,13 @@ const (
 )
 
 // VerdictMarker prefixes the one machine-readable line the prompt asks for.
-const VerdictMarker = "FIRSTPASS-VERDICT:"
+const VerdictMarker = "REVIEW-VERDICT:"
 
 // ParseVerdict reads the verdict out of a review's stdout.
 //
 // The last marked line wins, and it wins whatever it says. A headless agent
 // narrating its own plan can print the marker early ("I will finish with
-// FIRSTPASS-VERDICT: approve") and then print the real one after doing the
+// REVIEW-VERDICT: approve") and then print the real one after doing the
 // work, so an early match cannot be trusted — and an unrecognised last line
 // must not fall back to a recognised earlier one either, or this would be
 // picking whichever answer it liked best out of the transcript.
@@ -122,7 +122,7 @@ func New(r runner.Runner, claude string, extraArgs []string, dryRun bool, report
 //
 // A setter rather than another New parameter, so every existing caller and
 // every existing test keeps working unchanged -- which is what makes "a review
-// with no docs configured is byte-identical to the review firstpass did
+// with no docs configured is byte-identical to the review the service did
 // before" a property a test can assert rather than a claim.
 func (rr *Runner) WithDocs(root string) *Runner {
 	rr.docsRoot = root
@@ -165,7 +165,7 @@ const promptVerdictAsk = "\n\nWhen the review is complete, print exactly one of 
 	"`approve` if it raised nothing at all, or only **suggestion**-level points: nits, style and " +
 	"nice-to-haves do not withhold an approval, and a pull request whose every finding is a " +
 	"suggestion is an approval with those suggestions posted alongside it. This line is the only " +
-	"thing firstpass can see about what you found.\n" +
+	"thing the service can see about what you found.\n" +
 	// ParseVerdict takes the *last* marked line, so this constraint is not
 	// politeness: a recap or a sentence quoting the marker after the real
 	// verdict is read as the verdict. "findings" followed by prose mentioning
@@ -188,7 +188,7 @@ const promptVerdictAsk = "\n\nWhen the review is complete, print exactly one of 
 //
 // So the shape is asked for here rather than inherited from whichever skill
 // happens to load. That also makes the verdict rule checkable: "only minor
-// things were found" is a judgement about severities, and firstpass cannot see
+// things were found" is a judgement about severities, and the service cannot see
 // findings -- it can only see the verdict line the severities are supposed to
 // produce.
 //
@@ -235,17 +235,17 @@ const (
 	// written in the text, which cannot fail to anchor.
 	livePostingClause = " Post your findings as ONE comment on the pull request with `gh pr " +
 		"comment`, each finding naming its file and line. Do not post per-line inline comments " +
-		"and do not submit a GitHub review: firstpass submits the review itself."
+		"and do not submit a GitHub review: the service submits the review itself."
 )
 
 // Prompt is what claude is asked to do: a general instruction naming the pull
-// request under review, and the verdict line firstpass reads back.
+// request under review, and the verdict line the service reads back.
 //
 // A general instruction rather than a slash command, because a command's own
 // procedure crowds out the skills installed on the machine. Measured: in a C#
 // repository a general review prompt loads a .NET review skill on its own and
 // produces findings against a blocking / important / suggestion taxonomy,
-// which is firstpass's own rule about what blocks an approval. The command it
+// which is the service's own rule about what blocks an approval. The command it
 // replaced prescribed its own pipeline of subagents and consulted no skills at
 // all.
 //
@@ -253,7 +253,7 @@ const (
 // to post -- so a dry-run report is what would have been posted.
 //
 // The ref is load-bearing, not decoration. The checkout Prepare hands over is
-// a detached worktree of the PR head inside firstpass's own bare mirror: it has
+// a detached worktree of the PR head inside the service's own bare mirror: it has
 // no branch, no upstream and no merge-base to compare against, so a bare
 // "/code-review" would review an empty diff, and a live one would have no
 // pull request to post to. The URL is the only thing that tells the reviewer
@@ -276,7 +276,7 @@ func (rr *Runner) Prompt(ref prref.PRRef) string {
 }
 
 // verdictInstruction asks for the one line ParseVerdict reads, and explains
-// what firstpass does with it. It travels as --append-system-prompt.
+// what the service does with it. It travels as --append-system-prompt.
 //
 // It used to be the only place the line was asked for, on the reasoning that
 // anything after "/code-review" in the -p value becomes that command's
@@ -297,7 +297,7 @@ func (rr *Runner) Prompt(ref prref.PRRef) string {
 // exactly --comment.
 //
 // It has to stand on its own, with no command adjacent to lean on, and it
-// states the severity rule because firstpass cannot apply it: firstpass never
+// states the severity rule because the service cannot apply it: the service never
 // sees a finding, only this line.
 // "an automated review pass", not "an automated first pass ... before any
 // human has looked at it". The old wording was told to the reviewer on every
@@ -305,7 +305,7 @@ func (rr *Runner) Prompt(ref prref.PRRef) string {
 // pass, and a human may well have reviewed the pull request by then. What the
 // reviewer needs to know about history it is told precisely, by
 // secondPassNote, which only appears when there actually was a previous pass.
-const verdictInstruction = "You are running as firstpass: an automated review pass over a pull " +
+const verdictInstruction = "You are an automated review pass over a pull " +
 	"request, ahead of human review.\n\n" +
 	"When your review is complete, print exactly one of these two lines, verbatim, as the very " +
 	"last line of your output:\n" +
@@ -315,9 +315,9 @@ const verdictInstruction = "You are running as firstpass: an automated review pa
 	"if it raised nothing at all, or only suggestion-level points -- nits, style and " +
 	"nice-to-haves do not withhold an approval. Print nothing after that line, and no other " +
 	"line starting with " + VerdictMarker + "\n\n" +
-	"firstpass reads that line to decide whether to submit an approving review on the pull " +
-	"request or to leave it in the team's human review queue. It is the only thing firstpass " +
-	"can see about what you found: if the line is missing or reworded, firstpass submits no " +
+	"the service reads that line to decide whether to submit an approving review on the pull " +
+	"request or to leave it in the team's human review queue. It is the only thing the service " +
+	"can see about what you found: if the line is missing or reworded, the service submits no " +
 	"verdict at all."
 
 // ShortSHA is how a commit is named to a human -- or to a reviewing agent.
@@ -378,7 +378,7 @@ type PreviousPass struct {
 // posting a comment, and asks it to raise anything that is not already there.
 //
 // The moved-head variants ask for attention on what changed rather than for an
-// incremental diff, and say why: the mirror force-updates refs/firstpass/N, so
+// incremental diff, and say why: the mirror force-updates refs/reviewer/N, so
 // the previously-reviewed commit can be unreachable in the checkout by now. A
 // reviewer told to "diff against <sha>" would find nothing there and either
 // invent an answer or review nothing at all.
@@ -388,7 +388,7 @@ type PreviousPass struct {
 // a replay reaches. "Concentrate on what has changed" then names changes that
 // do not exist, and a blanket "do not restate that pass's findings" tells the
 // reviewer not to report the findings it is being asked to find, which is close
-// to neutering the command. `firstpass replay` is exactly what someone runs
+// to neutering the command. `reviewer replay` is exactly what someone runs
 // when the first pass was unsatisfying or when they are flipping dry run to
 // live, so it has to come back with a real review. What survives is the one
 // thing still true: a comment may already be sitting on that line.
@@ -428,7 +428,7 @@ func secondPassNote(pp PreviousPass) string {
 			what = "began reviewing this pull request at the commit it is still at, and did not " +
 				"finish. Some of its findings may already be posted as inline comments on the " +
 				"pull request and some may not: it was posting them one at a time when it " +
-				"stopped, and firstpass cannot tell how far it got."
+				"stopped, and the service cannot tell how far it got."
 		}
 		return "A previous automated pass " + what + " Nothing has changed since, so review it " +
 			"in full: this pass was asked for deliberately, and a review that held its findings " +
@@ -447,7 +447,7 @@ func secondPassNote(pp PreviousPass) string {
 	if pp.Incomplete {
 		head = "A previous automated pass began reviewing this pull request at commit " + short +
 			" and did not finish. It may or may not have got as far as posting its findings, " +
-			"and firstpass cannot tell which.\n\n" +
+			"and the service cannot tell which.\n\n" +
 			"Concentrate your COMMENTS on what has changed since " + short + ". Look for that " +
 			"pass's comment on the pull request: if it is there, do not restate what is in it; " +
 			"if it is not, that pass posted nothing and everything it would have found is still " +
@@ -455,7 +455,7 @@ func secondPassNote(pp PreviousPass) string {
 	}
 
 	return head + "\n\n" +
-		"Review the pull request as it now stands, not a diff against " + short + ": firstpass " +
+		"Review the pull request as it now stands, not a diff against " + short + ": the service " +
 		"force-updates the mirror ref it checks out, so " + short + " may no longer be reachable " +
 		"from the checkout you are looking at. Work out what has changed from the pull request " +
 		"itself."
@@ -466,7 +466,7 @@ func secondPassNote(pp PreviousPass) string {
 //
 // It exists so the caller can tell the two apart. A dry run posts nothing, so
 // a failed report write must never be recorded the way a killed review is —
-// with no exit status ("killed" in `firstpass status`) and a detail warning
+// with no exit status ("killed" in `reviewer status`) and a detail warning
 // that comments may already be partially posted. Neither is true here: claude
 // exited cleanly and nothing was sent to GitHub.
 type ReportError struct{ Err error }
@@ -547,7 +547,7 @@ func (rr *Runner) Run(ctx context.Context, dir string, ref prref.PRRef, previous
 	}
 
 	// extraArgs stays last: it is operator-controlled config, so it must keep
-	// being able to override anything firstpass sets for itself.
+	// being able to override anything the service sets for itself.
 	args := []string{
 		"-p", prompt,
 		"--append-system-prompt", system,
@@ -563,7 +563,7 @@ func (rr *Runner) Run(ctx context.Context, dir string, ref prref.PRRef, previous
 		args = append(args, "--add-dir", rr.docsRoot)
 	}
 	// extraArgs stays last: it is operator-controlled config, so it must keep
-	// being able to override anything firstpass sets for itself.
+	// being able to override anything the service sets for itself.
 	args = append(args, rr.extraArgs...)
 
 	res, err := rr.r.Run(ctx, dir, rr.claude, args...)
@@ -605,9 +605,9 @@ func (rr *Runner) Run(ctx context.Context, dir string, ref prref.PRRef, previous
 		// no report to write.
 		//
 		// The exception is a review that finished without a verdict line. That
-		// is the one live outcome firstpass cannot explain from its own
+		// is the one live outcome the service cannot explain from its own
 		// records: the review worked, the comments are posted, and the only
-		// thing missing is the line firstpass needed. Discarding the output
+		// thing missing is the line the service needed. Discarding the output
 		// there is what let this go unnoticed through fourteen consecutive
 		// production reviews -- every one recorded "verdict unknown", and not
 		// one of them left anything to read. Diagnosing it in the end took a
@@ -622,7 +622,7 @@ func (rr *Runner) Run(ctx context.Context, dir string, ref prref.PRRef, previous
 		//
 		// A review that did not finish qualifies for the same reason the
 		// missing verdict does, and more urgently: it was posting comments one
-		// at a time when it stopped, firstpass cannot tell how far it got, and
+		// at a time when it stopped, the service cannot tell how far it got, and
 		// the operator is told comments may be half posted. Whatever the
 		// reviewer had printed is the only evidence of how far it actually
 		// got.
@@ -669,7 +669,7 @@ func (rr *Runner) Run(ctx context.Context, dir string, ref prref.PRRef, previous
 //
 // It is written differently for the two kinds of report, because they describe
 // different facts. A dry-run report is subjunctive: nothing was submitted and
-// nothing was posted, so the operator is watching firstpass decide before it
+// nothing was posted, so the operator is watching the service decide before it
 // decides for real. A live report is not: its findings are already on the pull
 // request, and saying "nothing was submitted here" about a review whose
 // comments are posted would send the operator looking for damage in the wrong
@@ -681,25 +681,25 @@ func verdictNote(v Verdict, dryRun bool) string {
 			return fmt.Sprintf("**Verdict: %s** — submitted on the pull request. Its comments "+
 				"are posted there too.", v)
 		default:
-			return "**Verdict: unknown — the reviewer printed no verdict line firstpass " +
+			return "**Verdict: unknown — the reviewer printed no verdict line the service " +
 				"recognises.** No verdict was submitted and none was guessed. This review's " +
 				"comments ARE posted on the pull request; only the verdict is missing. This " +
-				"report exists because that outcome cannot be diagnosed from firstpass's own " +
+				"report exists because that outcome cannot be diagnosed from the service's own " +
 				"records."
 		}
 	}
 	switch v {
 	case VerdictApprove:
-		return "**Verdict: the verdict would have been approve** — live, firstpass would have " +
+		return "**Verdict: the verdict would have been approve** — live, the service would have " +
 			"submitted an approving review on this pull request under your GitHub identity. " +
 			"Nothing was submitted here."
 	case VerdictFindings:
-		return "**Verdict: the verdict would have been findings** — live, firstpass would have " +
+		return "**Verdict: the verdict would have been findings** — live, the service would have " +
 			"submitted a COMMENT review, never request-changes, so the pull request stays in the " +
 			"team's human review queue. Nothing was submitted here."
 	default:
-		return "**Verdict: unknown — the reviewer printed no verdict line firstpass recognises.** " +
-			"Live, firstpass would have submitted no verdict at all and recorded the review as " +
+		return "**Verdict: unknown — the reviewer printed no verdict line the service recognises.** " +
+			"Live, the service would have submitted no verdict at all and recorded the review as " +
 			"reviewed with an unknown verdict."
 	}
 }

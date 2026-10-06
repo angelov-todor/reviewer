@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/angelov-todor/firstpass/internal/runner"
+	"github.com/angelov-todor/reviewer/internal/runner"
 )
 
 const prevSHA = "0123456789abcdef0123456789abcdef01234567"
@@ -180,10 +180,10 @@ func TestADryRunSecondPassReportDoesNotOverwriteTheFirst(t *testing.T) {
 	}
 }
 
-// A replay is the reason this variant exists. The documented use of `firstpass
+// A replay is the reason this variant exists. The documented use of `the service
 // replay` is a needs_attention pull request -- one whose review died part-way
 // through posting -- so "a previous pass posted its findings" is not true
-// there: some are posted and some are not, and firstpass cannot tell which.
+// there: some are posted and some are not, and the service cannot tell which.
 // Sending the reviewer in believing either extreme is how the duplicate
 // comment set needs_attention exists to warn about actually happens.
 func TestTheNoteForAnIncompletePreviousPassAdmitsTheUncertainty(t *testing.T) {
@@ -246,7 +246,7 @@ func assertAdmitsUncertainty(t *testing.T, note string) {
 	// The uncertainty got simpler when findings became one comment rather than
 	// one per line. It used to be "some of its findings may be posted and some
 	// may not", because a pass killed mid-post had posted a prefix of them. A
-	// single comment is atomic: it either landed or it did not, and firstpass
+	// single comment is atomic: it either landed or it did not, and the service
 	// still cannot tell which.
 	//
 	// The shape asserted is the shape that matters -- the note admits it does
@@ -260,7 +260,7 @@ func assertAdmitsUncertainty(t *testing.T, note string) {
 			"were posted:\n%s", note)
 	}
 	if !strings.Contains(note, "cannot tell") {
-		t.Errorf("an incomplete pass's note must say firstpass cannot tell:\n%s", note)
+		t.Errorf("an incomplete pass's note must say the service cannot tell:\n%s", note)
 	}
 	for _, claim := range []*regexp.Regexp{
 		regexp.MustCompile(`(?i)posted its findings`),

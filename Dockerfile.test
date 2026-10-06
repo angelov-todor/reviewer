@@ -3,7 +3,7 @@
 # The race detector needs cgo and a working C toolchain. On the Windows
 # development machine `gcc` is present but broken (missing cc1.exe), so
 # `go test -race` cannot run there at all -- which is how the heartbeat
-# goroutine in cmd/firstpass/progress.go shipped verified by reasoning rather
+# goroutine in cmd/reviewer/progress.go shipped verified by reasoning rather
 # than by a detector. A Linux container has the toolchain, so the detector is
 # one `docker run` away rather than a machine-setup project.
 #

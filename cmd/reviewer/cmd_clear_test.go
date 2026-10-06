@@ -6,12 +6,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/angelov-todor/firstpass/internal/store"
+	"github.com/angelov-todor/reviewer/internal/store"
 )
 
 func clearStore(t *testing.T, recs ...store.Review) *store.Store {
 	t.Helper()
-	st, err := store.Open(filepath.Join(t.TempDir(), "firstpass.db"))
+	st, err := store.Open(filepath.Join(t.TempDir(), "reviewer.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,7 +29,7 @@ const clearKey = "AstraBit-CPT/aex-user-service#103"
 // TestClearMarksTheRecordHandled is the gap this command fills. A review that
 // did not finish is needs_attention -- terminal and correct, because a human
 // has to look. Once the human has looked there was no way to say so: the row
-// asked for attention forever, and the only thing that moved it was `firstpass
+// asked for attention forever, and the only thing that moved it was `the service
 // replay`, which re-reviews a pull request that may be merged and closed.
 func TestClearMarksTheRecordHandled(t *testing.T) {
 	st := clearStore(t, store.Review{
@@ -56,7 +56,7 @@ func TestClearMarksTheRecordHandled(t *testing.T) {
 	if rec.Outcome != store.OutcomeCleared {
 		t.Errorf("Outcome = %q, want cleared", rec.Outcome)
 	}
-	// Deliberately not "reviewed": firstpass did not review this pull request,
+	// Deliberately not "reviewed": the service did not review this pull request,
 	// and recording that it had would be a false record.
 	if rec.Outcome == store.OutcomeReviewed {
 		t.Error("clearing must not claim a review happened")
@@ -111,7 +111,7 @@ func TestClearRefusesAKeyItDoesNotKnow(t *testing.T) {
 // settled one would only lose information -- why a pull request was skipped,
 // or that a review completed and what verdict it submitted -- and clearing a
 // reviewed row is the more dangerous half: it would overwrite the record of a
-// verdict firstpass actually submitted on somebody's pull request.
+// verdict the service actually submitted on somebody's pull request.
 func TestClearRefusesASettledRecord(t *testing.T) {
 	for _, outcome := range []store.Outcome{
 		store.OutcomeReviewed,

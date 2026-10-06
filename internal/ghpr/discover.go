@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/angelov-todor/firstpass/internal/prref"
+	"github.com/angelov-todor/reviewer/internal/prref"
 )
 
 // Query describes which pull requests a GitHub source should offer.
@@ -16,7 +16,7 @@ import (
 // Deliberately narrow. The obvious query -- every open pull request in the
 // organisation -- returns over five hundred, each of which would cost a clone
 // and a claude run, and would comment on colleagues' pull requests nobody
-// asked firstpass to look at. Requiring a review request keeps the property
+// asked the service to look at. Requiring a review request keeps the property
 // that makes the chat source work: somebody asked.
 type Query struct {
 	// Owner is the organisation, e.g. AstraBit-CPT.
@@ -175,7 +175,7 @@ func (c *Client) Discover(ctx context.Context, q Query) (Page, error) {
 			// prref.New, never a literal: it folds the case that Key and the
 			// store assume is folded. GitHub answers "AstraBit-CPT" where a
 			// chat link says "astrabit-cpt", and an unfolded ref is a second
-			// key for a pull request firstpass already knows about -- which is
+			// key for a pull request the service already knows about -- which is
 			// a second review of it.
 			Ref:    prref.New(owner, repo, it.Number),
 			Author: it.User.Login,

@@ -10,7 +10,7 @@ import (
 //
 // It carries that pull request's diff rather than a checkout of it. Three
 // alternatives were considered and this is the one that survives contact with
-// how firstpass already works:
+// how the service already works:
 //
 //   - A checkout per sibling collides. Worktree paths are per pull request, so
 //     two concurrent reviews of the same group would both want the same
@@ -31,17 +31,17 @@ type Sibling struct {
 	// Truncated says the diff was cut. The reviewer is told, so it does not
 	// read the absence of a change as evidence there was none.
 	Truncated bool
-	// Status is what firstpass's own records say about this sibling, in words
+	// Status is what the service's own records say about this sibling, in words
 	// the reviewer can act on.
 	//
-	// It replaced a boolean claiming firstpass was "reviewing this one
+	// It replaced a boolean claiming the service was "reviewing this one
 	// separately", which was guesswork and inverted: it answered true for
 	// every record that was not a completed review, which is exactly the
 	// drafts, the operator's own pull requests and the merged ones that
 	// nothing else will look at. The reviewer was told to stay quiet about
 	// precisely the problems nobody else would raise.
 	//
-	// Now it reports the record, not a prediction. Empty when firstpass has no
+	// Now it reports the record, not a prediction. Empty when the service has no
 	// record at all.
 	Status string
 }
@@ -77,9 +77,9 @@ func siblingNote(under string, sibs []Sibling) string {
 	for _, s := range sibs {
 		b.WriteString("---\n" + s.Key + "  " + s.URL + "\n")
 		if s.Status != "" {
-			b.WriteString("firstpass's record for it: " + s.Status + "\n")
+			b.WriteString("the service's record for it: " + s.Status + "\n")
 		} else {
-			b.WriteString("firstpass has no record for it yet.\n")
+			b.WriteString("the service has no record for it yet.\n")
 		}
 		// Explicit markers rather than a markdown fence. A diff that touches a
 		// markdown file contains ``` of its own, which closes the fence early

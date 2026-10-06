@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/angelov-todor/firstpass/internal/runner"
+	"github.com/angelov-todor/reviewer/internal/runner"
 )
 
 func TestAddReactionReturnsTheReactionName(t *testing.T) {

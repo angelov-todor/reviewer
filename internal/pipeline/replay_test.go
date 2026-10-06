@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/angelov-todor/firstpass/internal/prref"
-	"github.com/angelov-todor/firstpass/internal/store"
+	"github.com/angelov-todor/reviewer/internal/prref"
+	"github.com/angelov-todor/reviewer/internal/store"
 )
 
 // Canonically lowercase, as prref.Extract produces it -- cmdReplay parses the

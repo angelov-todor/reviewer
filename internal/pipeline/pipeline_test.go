@@ -12,12 +12,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/angelov-todor/firstpass/internal/chat"
-	"github.com/angelov-todor/firstpass/internal/config"
-	"github.com/angelov-todor/firstpass/internal/ghpr"
-	"github.com/angelov-todor/firstpass/internal/prref"
-	"github.com/angelov-todor/firstpass/internal/review"
-	"github.com/angelov-todor/firstpass/internal/store"
+	"github.com/angelov-todor/reviewer/internal/chat"
+	"github.com/angelov-todor/reviewer/internal/config"
+	"github.com/angelov-todor/reviewer/internal/ghpr"
+	"github.com/angelov-todor/reviewer/internal/prref"
+	"github.com/angelov-todor/reviewer/internal/review"
+	"github.com/angelov-todor/reviewer/internal/store"
 )
 
 // ---- fakes ----
@@ -218,7 +218,7 @@ type fakeRev struct {
 	sibs [][]review.Sibling
 	// priors records the prior feedback handed to each invocation, so a test
 	// can prove the reviewer was actually shown what is already on the pull
-	// request rather than merely that firstpass fetched it.
+	// request rather than merely that the service fetched it.
 	priors []*review.PriorFeedback
 }
 

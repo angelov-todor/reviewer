@@ -2,7 +2,7 @@ package main
 
 // status has to show that a pull request has been reviewed more than once.
 // The operator's question on seeing comments arrive twice on one pull request
-// is "did firstpass do that deliberately?", and the pass number is the answer.
+// is "did the service do that deliberately?", and the pass number is the answer.
 
 import (
 	"bytes"
@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/angelov-todor/firstpass/internal/store"
+	"github.com/angelov-todor/reviewer/internal/store"
 )
 
 func TestRenderStatusShowsALaterPassDistinguishably(t *testing.T) {

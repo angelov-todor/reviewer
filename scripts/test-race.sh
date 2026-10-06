@@ -16,7 +16,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-IMAGE=firstpass-test
+IMAGE=reviewer-test
 
 # On Windows, Docker Desktop needs a drive-letter path; `pwd -W` gives one.
 # Elsewhere plain $PWD is right.
@@ -60,8 +60,8 @@ fi
 echo "==> go test -race ${ARGS[*]}"
 exec docker run --rm \
 	-v "${HOST_SRC}:/src" \
-	-v firstpass-gomod:/go/pkg/mod \
-	-v firstpass-gocache:/root/.cache/go-build \
+	-v reviewer-gomod:/go/pkg/mod \
+	-v reviewer-gocache:/root/.cache/go-build \
 	-w /src \
 	"$IMAGE" \
 	go test -race "${ARGS[@]}"

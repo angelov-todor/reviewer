@@ -7,14 +7,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/angelov-todor/firstpass/internal/pipeline"
-	"github.com/angelov-todor/firstpass/internal/prref"
+	"github.com/angelov-todor/reviewer/internal/pipeline"
+	"github.com/angelov-todor/reviewer/internal/prref"
 )
 
 // heartbeatTickInterval is how often the heartbeat prints an elapsed-time
 // line while a review is running. 30s matches the "roughly every 30 seconds"
 // requirement: frequent enough that an operator watching a redirected log
-// never waits more than half a minute to see firstpass is still alive,
+// never waits more than half a minute to see the service is still alive,
 // infrequent enough not to flood the log over a review that can run tens of
 // minutes.
 const heartbeatTickInterval = 30 * time.Second
@@ -115,7 +115,7 @@ func (r *progressRenderer) Handle(ev pipeline.Event) {
 		// This review's own heartbeat stops before the line is printed, not
 		// after: the alternative ordering can interleave its own tick between
 		// this line and the one that follows, which reads like the review kept
-		// running after firstpass just said it finished. Other reviews'
+		// running after the service just said it finished. Other reviews'
 		// heartbeats keep ticking, because those reviews are still running.
 		r.stopHeartbeatFor(ev.Ref.Key())
 		r.line("[%d/%d] %s — %s\n", ev.Index, ev.Total, ev.Ref.Key(), ev.Detail)
@@ -134,7 +134,7 @@ func (r *progressRenderer) line(format string, args ...any) {
 
 // startHeartbeat begins printing an updating elapsed-time line for one review
 // roughly every 30 seconds -- the whole point of this feature, since a
-// 12-minute silent gap is what made an operator conclude firstpass had hung.
+// 12-minute silent gap is what made an operator conclude the service had hung.
 //
 // Any heartbeat already running for the same pull request is stopped first.
 // That is defensive rather than expected, and it is deliberately per pull

@@ -7,9 +7,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/angelov-todor/firstpass/internal/config"
-	"github.com/angelov-todor/firstpass/internal/prref"
-	"github.com/angelov-todor/firstpass/internal/store"
+	"github.com/angelov-todor/reviewer/internal/config"
+	"github.com/angelov-todor/reviewer/internal/prref"
+	"github.com/angelov-todor/reviewer/internal/store"
 )
 
 // cmdClear marks one pull request's record handled.
@@ -17,14 +17,14 @@ import (
 // The gap it fills: a review that did not finish is recorded needs_attention,
 // which is terminal and correct -- a human has to look, because comments may
 // be half posted. But once the human has looked, there was no way to say so.
-// The record sat in `firstpass status` as an outstanding item forever, and the
-// only way to move it was `firstpass replay`, which re-reviews a pull request
+// The record sat in `reviewer status` as an outstanding item forever, and the
+// only way to move it was `reviewer replay`, which re-reviews a pull request
 // that may well be merged and closed by then.
 //
 // Marked, not deleted. Deleting the row would take away the dedupe record too,
 // so a link to the same pull request posted again in chat -- a colleague
 // bumping an old thread -- would review it from scratch. A cleared record is
-// terminal, so it stays a decision firstpass has already made; it simply stops
+// terminal, so it stays a decision the service has already made; it simply stops
 // asking for attention.
 func cmdClear(args []string) error {
 	fs := flag.NewFlagSet("clear", flag.ExitOnError)
@@ -34,7 +34,7 @@ func cmdClear(args []string) error {
 		return err
 	}
 	if fs.NArg() != 1 {
-		return errors.New("usage: firstpass clear [-note text] <pr-url | owner/repo#n>")
+		return errors.New("usage: reviewer clear [-note text] <pr-url | owner/repo#n>")
 	}
 	refs := prref.Extract(fs.Arg(0))
 	if len(refs) != 1 {
@@ -71,11 +71,11 @@ func clearRecord(st *store.Store, key, note string, now time.Time) (
 	if err != nil {
 		return "", false, err
 	}
-	// A typo must not look like success. Without this, `firstpass clear` on a
+	// A typo must not look like success. Without this, `reviewer clear` on a
 	// mistyped URL prints nothing wrong and leaves the record it was aimed at
 	// exactly where it was.
 	if !found {
-		return "", false, fmt.Errorf("no record for %s; `firstpass status` lists the keys", key)
+		return "", false, fmt.Errorf("no record for %s; `reviewer status` lists the keys", key)
 	}
 
 	// Only the two outcomes that ask for attention can be cleared. The others

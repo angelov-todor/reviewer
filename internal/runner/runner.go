@@ -1,4 +1,4 @@
-// Package runner is the single seam between firstpass and the external programs
+// Package runner is the single seam between the service and the external programs
 // it drives, so tests can run the decision logic without subprocesses.
 package runner
 

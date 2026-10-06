@@ -1,17 +1,26 @@
-# firstpass
+# reviewer
 
-A machine pass over a PR ahead of human review — and again when it changes.
+An automated review pass over the project's pull requests, ahead of human
+review — and again whenever the code changes.
 
-`firstpass` is a Go daemon for Windows that watches a Google Chat space for
-posted GitHub pull request links and, for each newly posted PR, runs a
+`reviewer` is a Go daemon that finds pull requests two ways: links posted in
+the team's Google Chat space, and open pull requests on GitHub with a review
+requested from it. For each one it runs a
 [Claude Code](https://claude.com/product/claude-code) review in an isolated
-git worktree and posts the findings as a comment on the PR.
+git worktree, posts the findings as a comment, and submits a verdict —
+approve, request changes, or comment.
 
-The name is about position, not count: each pass is the first automated look
-at the commits it reviews, ahead of a human. A re-posted PR with new commits
-gets another pass (see [Second pass](#second-pass)), and the review it submits
-says which pass it is — an approval on a later pass covers the new commits,
-not the whole change.
+One review per pull request per commit, whichever source found it. A pull
+request is reviewed again only when there are new commits (see
+[Second pass](#second-pass)), and the review says which pass it is: an
+approval on a later pass covers the new commits, not the whole change.
+
+It is advisory. It never pushes, never merges, and is not meant to be the
+approval that unblocks one.
+
+> The name is a placeholder. In the code and the comments the daemon is "the
+> service" and the `claude` subprocess it drives is "the reviewer", so the
+> next rename touches identifiers only and leaves the prose alone.
 
 ## How it works
 
@@ -36,14 +45,14 @@ One sweep, on a ticker or on demand:
    reviewed. Measured: in a C# fixture, a general review prompt loads
    `dotnet-techne-code-review` on its own.
 
-   It does not always, though, and firstpass no longer depends on it. The
+   It does not always, though, and the service no longer depends on it. The
    first live review under the general prompt loaded no skill at all — that
    service repository carries an 859-line `CLAUDE.md`, and the model reviewed
    directly from it rather than reaching for a generic checklist. The review
    was good and simply had no severity labels. So the prompt asks for the
    shape it needs: **one severity per finding — blocking, important or
    suggestion**. That is also what makes the verdict rule checkable, since
-   firstpass never sees a finding.
+   the service never sees a finding.
 
    Live, the reviewer posts its findings as **one comment** on the PR, each
    finding naming its file and line — not one comment per line. A per-line
@@ -64,7 +73,7 @@ One sweep, on a ticker or on demand:
    `--comment` flag that the command never actually read, so the only thing
    keeping a dry run quiet was that the reviewer happened not to post. Live,
    the reviewer is told to post its findings in one comment — and
-   firstpass writes a report anyway in the two live cases it could not otherwise
+   the service writes a report anyway in the two live cases it could not otherwise
    explain: a review that finished without a verdict line, and one that did
    not finish at all. A live report says plainly that its comments are
    posted.
@@ -90,7 +99,7 @@ One sweep, on a ticker or on demand:
    one sentence saying it covered only the newest commits.
 
    **An approval covers the whole pull request.** Before the review runs,
-   firstpass enumerates every piece of feedback already on the PR — unresolved
+   the service enumerates every piece of feedback already on the PR — unresolved
    and resolved inline threads, review bodies, and plain comments, from your
    colleagues as well as from its own earlier passes — and hands the reviewer
    an index of it. `approve` is only correct when the current code is sound
@@ -98,9 +107,9 @@ One sweep, on a ticker or on demand:
    addressed. Minor nits do not block it.
 
    Two things override an `approve` regardless of what the reviewer decided,
-   because they are about what firstpass knows rather than about the code:
+   because they are about what the service knows rather than about the code:
 
-   - **A human has requested changes.** firstpass never submits an approval
+   - **A human has requested changes.** the service never submits an approval
      over an outstanding `CHANGES_REQUESTED`; under your identity that reads as
      you clearing a colleague's block.
    - **The list came back incomplete.** GitHub answered and said there is more
@@ -119,7 +128,7 @@ One sweep, on a ticker or on demand:
    the PR is offered again on the next sweep. This was learned in production. A
    ninety-second GitHub outage produced two reviews without their feedback
    lists, both approvals withheld and both records terminal — leaving a
-   colleague's PR permanently unapproved, carrying a comment about firstpass's
+   colleague's PR permanently unapproved, carrying a comment about the service's
    own limitation, with nothing that would ever try again. Retrying just the
    gate after the review would not fix it: a reviewer that was never shown what
    was raised cannot support the claim that it has all been addressed.
@@ -144,7 +153,7 @@ What the reviewer is told depends on what the earlier pass actually did:
   commit it reviewed and asked not to restate its findings, because they are
   already on those lines.
 - **It did not finish** (a `needs_attention` record, reached only by
-  `firstpass replay`). The reviewer is told plainly that some of that pass's
+  `reviewer replay`). The reviewer is told plainly that some of that pass's
   findings may be posted and some may not, that nothing knows how far it got,
   and to check the pull request before posting a comment — and to raise
   anything that is not already there.
@@ -161,7 +170,7 @@ All three of these must hold, or the re-post is skipped:
 
 1. The existing record's outcome is `reviewed`, and it records the commit it
    reviewed. **No other outcome qualifies.** `needs_attention` in particular
-   still needs an explicit `firstpass replay`: it means a review died
+   still needs an explicit `reviewer replay`: it means a review died
    mid-post, so comments may be half posted, and an automatic retry risks
    putting a second copy of each of them on a colleague's pull request. A
    re-post is not consent to that. Every skipped outcome fails for the plainer
@@ -211,7 +220,7 @@ changed hands pays that call too, and those skip *without* advancing the
 recorded trigger, so each later re-post or re-scan of the same post pays it
 again. All of them are reads; no new write of any kind is made.
 
-`firstpass status` marks a later pass — `reviewed / findings (pass 2)`. A row
+`reviewer status` marks a later pass — `reviewed / findings (pass 2)`. A row
 written before this feature existed has no pass number and reads as the first
 pass it was. A dry run's report for a later pass is written to
 `<owner>_<repo>_<n>_after_<short-sha>.md`, so it does not overwrite the report
@@ -221,12 +230,12 @@ commits changed.
 Re-posted with no new commits, a merged, closed, drafted or reassigned pull
 request keeps the record of the pass that reviewed it. Skipping is still right
 — a merged PR must not be reviewed — but the reviewed commit, the submitted
-verdict and the pass count are the only evidence of what firstpass did here,
+verdict and the pass count are the only evidence of what the service did here,
 and none of it is recoverable from anywhere else, so a skip does not overwrite
-them. `firstpass status` therefore still shows such a PR as `reviewed`, not
+them. `reviewer status` therefore still shows such a PR as `reviewed`, not
 `skipped_state`. Only the backlog entry is cleared.
 
-`firstpass replay` still ignores the record when deciding whether to review —
+`reviewer replay` still ignores the record when deciding whether to review —
 that is the whole point of it, and none of the three conditions applies — but
 it now **reads** the record first, so the reviewer is told that a pass has
 already been here. That matters most for the case replay is documented for: a
@@ -234,10 +243,10 @@ already been here. That matters most for the case replay is documented for: a
 reviewer told nothing about that will restate every finding on the lines that
 may already carry them. For such a record the reviewer is told plainly that
 the earlier pass did not finish, that nothing knows how far it got, and to
-check the pull request before posting a comment. A replay of a PR firstpass
+check the pull request before posting a comment. A replay of a PR the service
 has never reviewed is a first pass and says nothing. Unlike a re-post, a
 replay that ends in a skip does record its own fresh decision: the operator
-asked what firstpass makes of the PR now, and that is the answer.
+asked what the service makes of the PR now, and that is the answer.
 
 ### Running out of Claude capacity
 
@@ -246,8 +255,8 @@ left. It posted nothing, it will succeed unchanged once the limit resets, and
 it says nothing about the pull request, so recording the outcome that means
 "a human has to look at this" strands work that would have reviewed itself.
 Before this existed, an account that ran out mid-sweep left up to three pull
-requests per sweep needing a hand-typed `firstpass replay`; the only defence
-was to notice and run `firstpass pause`, which worked and should not have been
+requests per sweep needing a hand-typed `reviewer replay`; the only defence
+was to notice and run `reviewer pause`, which worked and should not have been
 necessary.
 
 Such a review is **deferred without counting an attempt**, deliberately unlike
@@ -265,7 +274,7 @@ the remainder are parked untouched. Exactly what a mid-sweep pause does.
 Two things keep this from being simply "defer on a usage limit". It is
 recognised only from a **failed** run, so a successful review whose diff quotes
 the phrase — an error string in somebody's code, a test fixture — is not
-mistaken for one. And it is deferred only once firstpass has established that
+mistaken for one. And it is deferred only once the service has established that
 **nothing was posted**: a limit reached after the reviewer began commenting
 cannot be retried, because re-reviewing would put a second copy of those
 comments on a colleague's pull request, which is the damage `needs_attention`
@@ -290,16 +299,16 @@ Live only, a message that carried a PR link is reacted to:
 - ✅ or 💬 once **every** pull request that message carried has reached a
   terminal outcome, at which point the 👀 is removed.
 
-✅ means every pull request that message carried **and that firstpass actually
+✅ means every pull request that message carried **and that the service actually
 reviewed** came back with an **approve** verdict — the same verdict that
 submits an approving GitHub review. 💬 means at least one of them wants a
-human's eye: findings were raised, or the reviewer printed no verdict firstpass
+human's eye: findings were raised, or the reviewer printed no verdict the service
 recognised, or the verdict could not be submitted, or the review did not
-finish. firstpass never reads ✅ into silence, so anything it does not know
+finish. the service never reads ✅ into silence, so anything it does not know
 counts as 💬.
 
-Pull requests firstpass **skipped** are excluded from that decision. A skip is
-not a finding — nothing was wrong with the code, firstpass simply had no
+Pull requests the service **skipped** are excluded from that decision. A skip is
+not a finding — nothing was wrong with the code, the service simply had no
 business reviewing it — so a message carrying one clean review and one merged
 or out-of-org link still gets ✅.
 
@@ -315,16 +324,16 @@ Three consequences worth knowing:
   message is finished. A draft posted alongside a reviewable PR is deferred,
   not decided, and keeps being retried until it is marked ready or its backlog
   entry expires — up to `pending_max_age`, a week by default. Until then the
-  message keeps 👀 even though the PRs firstpass could review are all done.
+  message keeps 👀 even though the PRs the service could review are all done.
   That is deliberate: one result reaction per message is the whole point, and
   reacting before the message is finished would mean reacting twice. But it is
-  the state you are most likely to see and misread, so `firstpass status` is
+  the state you are most likely to see and misread, so `reviewer status` is
   the place to look — the draft will be sitting in the deferred list.
 - A message whose every link was skipped — owner not on `allow_owners`, a
   denied repo, merged, closed, a draft, your own PR — gets **no reaction at
   all**. Nothing was reviewed, so there is nothing to report, and a bare ✅
   would be the first the team heard of it.
-- `firstpass replay` reacts to nothing on the way in: its trigger is the
+- `reviewer replay` reacts to nothing on the way in: its trigger is the
   literal `replay` and identifies no chat message. A PR re-offered from the
   backlog **does** now react, because a parked PR keeps a record of the post
   that offered it — so a draft that becomes ready a day later, or a review the
@@ -335,7 +344,7 @@ Three consequences worth knowing:
   the sweep that decides its last pull request adds the result reaction,
   whichever path decided it.
 
-Reactions are cosmetic, and firstpass treats them that way. A failed reaction
+Reactions are cosmetic, and the service treats them that way. A failed reaction
 — a missing OAuth scope, a deleted message, a network blip — is logged and
 nothing more: it never changes a review's outcome, never defers a PR, never
 affects the verdict submitted on it, and never stops the next review.
@@ -360,7 +369,7 @@ reaction can be hours behind the post that triggered it.
 - `git` on `PATH`.
 - A script that can read your Google Chat space and print its messages as
   JSON on stdout, and add and remove reactions on a message.
-  **firstpass does not talk to the Google Chat API directly** — it drives
+  **the service does not talk to the Google Chat API directly** — it drives
   this script as a subprocess, the same way it drives `git` and `gh`. No such
   script is included in this repository; you need to supply or write one
   yourself (see `internal/chat` for the expected subcommands and output
@@ -371,15 +380,15 @@ reaction can be hours behind the post that triggered it.
 ## Install and configure
 
 ```
-go build ./cmd/firstpass
+go build ./cmd/reviewer
 ```
 
-Copy `config.yaml.example` to `%APPDATA%\firstpass\config.yaml` and fill in
+Copy `config.yaml.example` to `%APPDATA%\the service\config.yaml` and fill in
 the fields it marks as required: `space`, `github_login`, `allow_owners`, and
-`paths.chat_script`. `firstpass doctor` refuses to say a fresh, unconfigured
+`paths.chat_script`. `reviewer doctor` refuses to say a fresh, unconfigured
 install is healthy — it will tell you which of these is still missing.
 
-Run `firstpass doctor` to check every external dependency (`git`, `claude`,
+Run `reviewer doctor` to check every external dependency (`git`, `claude`,
 `gh` auth, whether the `gh` token actually carries the `repo` scope
 `gh pr review` needs to submit a verdict, the chat script, and that the
 configured Google Chat account can actually see named spaces).
@@ -401,7 +410,7 @@ configured Google Chat account can actually see named spaces).
   Flag: `-print-only`.
 - `doctor` — preflight every external dependency, and run each configured
   source's real query, reporting what came back. A full page is reported as a
-  failure: it means pull requests exist that firstpass will never see.
+  failure: it means pull requests exist that the service will never see.
 - `pause` / `resume` — write / remove a kill-switch file. While paused,
   sweeps still queue new PRs but run no reviews and post nothing.
 
@@ -413,21 +422,21 @@ the default.
 `needs_attention` is terminal, and rightly: a review that died part-way through
 may have posted half its comments, so a person has to look. But once that
 person has looked, there was no way to say so. The row asked for attention in
-`firstpass status` forever, and the only thing that moved it was `firstpass
+`reviewer status` forever, and the only thing that moved it was `the service
 replay` — which reviews the pull request again, possibly long after it merged.
 
-`firstpass clear <pr>` marks it, and marks rather than deletes. Deleting the
+`reviewer clear <pr>` marks it, and marks rather than deletes. Deleting the
 row would take the dedupe record with it, so the same link posted again in chat
 — a colleague bumping an old thread — would review from scratch something
 already dealt with. A `cleared` outcome is terminal like the rest, and
-deliberately distinct from `reviewed`: firstpass did not review that pull
+deliberately distinct from `reviewed`: the service did not review that pull
 request, and recording that it had would be a false record.
 
 The original detail is kept inside the new one, because it is the only account
 of what went wrong and exists nowhere else once the log rotates. Only the two
 outcomes that ask for attention are clearable — clearing a settled row could
 only lose information, and clearing a `reviewed` one would overwrite the record
-of a verdict firstpass actually submitted on somebody's pull request. Any
+of a verdict the service actually submitted on somebody's pull request. Any
 backlog entry goes too, since a pull request declared handled must not be
 re-offered by the next sweep.
 
@@ -436,7 +445,7 @@ is stopped.
 
 ## Sources
 
-A **source** is a place firstpass looks for pull requests. Both kinds are
+A **source** is a place the service looks for pull requests. Both kinds are
 written in the config, so the file names every source rather than naming one
 and implying the other.
 
@@ -466,7 +475,7 @@ with them.
 
 The chat space carries the two things a search cannot: which pull requests were
 posted together, and a message to react to. A GitHub source is an addition to
-it, so a GitHub outage or a rate limit costs firstpass the discovered pull
+it, so a GitHub outage or a rate limit costs the service the discovered pull
 requests for one sweep and never the posted ones.
 
 **A source finds pull requests with a review requested from you, and there is
@@ -480,7 +489,7 @@ asked.
 result to a single request. Bots dominate a review-requested queue — 314 of 327
 on the organisation this was built against — so without the exclusion the real
 pull requests are crowded off the page. `exclude_bots` is the second net, for
-the bot nobody has added to that list yet, and firstpass warns when a page
+the bot nobody has added to that list yet, and the service warns when a page
 comes back full.
 
 ### Starting without reviewing history
@@ -499,9 +508,9 @@ and login rather than its position in the list, so reordering the entries or
 adding one above an existing source does not read as a new source and
 cold-start one that has been running for weeks.
 
-The chat equivalent for an existing installation is `firstpass catchup`, which
+The chat equivalent for an existing installation is `reviewer catchup`, which
 moves the watermark to the newest message without reviewing what came before
-it. Use it when firstpass has been off for a while and that window has already
+it. Use it when the service has been off for a while and that window has already
 been dealt with by hand. It prints the pull requests it is about to skip, with
 how many were already decided, before it moves anything — they will not be
 reviewed unless somebody posts them again or you `replay` them — and
@@ -525,7 +534,7 @@ permission to review. GitHub moves `updated_at` for a comment as readily as for
 a push, so a discussed pull request is offered again and turned away by the SHA
 gate — the prompt is deliberately generous and the gate is exact. Without the
 prompt, discovery would spend one GitHub call per pull request per sweep for no
-new information, and firstpass shares that rate limit with the reviews.
+new information, and the service shares that rate limit with the reviews.
 
 GitHub sometimes answers with `incomplete_results` — its search giving up part
 way. Against this organisation, three identical calls returned 6, 8 and 9 of a
@@ -535,7 +544,7 @@ discovery re-runs every sweep, so a pull request one partial search missed is
 offered by the next. A **full page** is the different case and is actionable —
 exclude the noisiest authors.
 
-`firstpass doctor` runs each source's query for real and prints what came
+`reviewer doctor` runs each source's query for real and prints what came
 back — scanned, matched, and how many survived the bot filter. A source that
 returns nothing otherwise looks exactly like a quiet week: a typo in the login,
 an owner with no review requests and a `repo_prefixes` matching no repository
@@ -566,7 +575,7 @@ written retrieval procedure.
 
 Two rules travel with it, and the second matters more than the first: a
 compliance finding must **cite** the document and section it rests on, and a
-finding that cannot be cited must not be raised at all. firstpass submits under
+finding that cannot be cited must not be raised at all. the service submits under
 your GitHub identity, and an invented regulatory claim on a colleague's pull
 request costs more than the finding could have been worth.
 
@@ -608,13 +617,13 @@ Details worth knowing:
   evidence there was none.
 - **A sibling outside `allow_owners` is never fetched.** The chat space is a
   chat room, not an access boundary: a link to an unrelated repository turns up
-  eventually, and the same rule that stops firstpass reviewing it stops
-  firstpass reading it.
+  eventually, and the same rule that stops the service reviewing it stops
+  the service reading it.
 - **A sibling that cannot be fetched costs context, not the review.** This is
   deliberately the opposite of the feedback fetch, which withholds an
   approval: an approval makes a claim about the feedback, while a review makes
   no claim about its siblings.
-- **The reviewer is told not to review them** — and told whether firstpass is
+- **The reviewer is told not to review them** — and told whether the service is
   reviewing each one separately. A sibling under review will get its own
   comments; one that is not (a draft, your own, already reviewed) gets no
   other look, which changes whether a problem spotted there is worth
@@ -629,7 +638,7 @@ before the next starts. Three posted at once, at roughly 12 minutes each, is
 therefore about 36 minutes before the last one is done.
 
 `review_concurrency` raises that. The default is `1`, so an upgrade never
-makes firstpass do more at once than the operator asked for. Setting it above
+makes the service do more at once than the operator asked for. Setting it above
 `max_reviews_per_sweep` is allowed and just has no effect beyond the cap.
 
 ```yaml
@@ -693,7 +702,7 @@ to stop a review.
 Read this before running anything other than `doctor` or `scan -print-only`.
 
 - **`dry_run: true` is the default.** Passing `-live`, or setting
-  `dry_run: false` in the config, is what makes firstpass post real comments
+  `dry_run: false` in the config, is what makes the service post real comments
   to real pull requests, under your GitHub identity — and what makes it react
   to real chat messages, under your Google identity. `dry_run` is an absolute
   "no outward effect" switch: a dry run does not react, does not submit
@@ -713,19 +722,19 @@ Read this before running anything other than `doctor` or `scan -print-only`.
   blocks a merge on its own — but an approval does clear `reviewDecision`, and
   that is a real approval on someone else's work. Nothing is submitted unless
   the review itself succeeded and the reviewer printed a verdict line
-  firstpass recognises: a missing or unrecognised line submits nothing and is
+  the service recognises: a missing or unrecognised line submits nothing and is
   recorded as `reviewed / verdict unknown`, never guessed into an approval. A
   submission that fails leaves the review recorded as `reviewed` with the
-  error visible in `firstpass status`, and is not retried.
+  error visible in `reviewer status`, and is not retried.
 - **`allow_owners` is the blast-radius control, and it has no default.** A
   Google Chat space is a chat room, not an access boundary — someone will
-  eventually paste a link to a repository you don't intend firstpass to
+  eventually paste a link to a repository you don't intend the service to
   touch. Set `allow_owners` before running anything live.
 - **`--permission-mode bypassPermissions` in `claude_args` is not
   sandboxed by the worktree.** The review subprocess inherits your full
   environment and can reach anything you can reach — including
   repositories outside `allow_owners` — because that allowlist decides
-  which PRs firstpass chooses to review, not what the subprocess is capable
+  which PRs the service chooses to review, not what the subprocess is capable
   of once it's running. The checkout it reviews is also attacker-influenced:
   it's the pull request author's code, and it may carry its own `CLAUDE.md`
   or `.claude/` configuration that a headless agent with no human at the
@@ -736,7 +745,7 @@ Read this before running anything other than `doctor` or `scan -print-only`.
   filtering were checked against 200 messages of real chat history, and a
   dry-run `replay` produced a substantive report in 12m15s, which is why
   `review_timeout` defaults to 30m. Comments have since been posted live: on
-  a 7-file, +539/−12 pull request firstpass left three inline comments (under
+  a 7-file, +539/−12 pull request the service left three inline comments (under
   the earlier per-line posting, since replaced by one comment per review),
   including one that falsified a security claim in the PR's own description,
   one `IsSuccessStatusCode` trap where a 2xx with an undeserialisable body

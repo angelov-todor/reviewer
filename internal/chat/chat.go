@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/angelov-todor/firstpass/internal/runner"
+	"github.com/angelov-todor/reviewer/internal/runner"
 )
 
 // Message is one Google Chat message.

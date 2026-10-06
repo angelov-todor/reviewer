@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/angelov-todor/firstpass/internal/runner"
+	"github.com/angelov-todor/reviewer/internal/runner"
 )
 
 func samplePrior() *PriorFeedback {
@@ -102,7 +102,7 @@ func TestThePriorIndexShowsWhatTheReviewerNeedsToJudge(t *testing.T) {
 }
 
 // An incomplete list has to say so to the reviewer as well as to the gate.
-// firstpass refuses the approval either way, but a reviewer that believes it
+// the service refuses the approval either way, but a reviewer that believes it
 // has seen everything may write a review that says so.
 func TestAnIncompleteIndexSaysSo(t *testing.T) {
 	note := priorNote(&PriorFeedback{Incomplete: true})

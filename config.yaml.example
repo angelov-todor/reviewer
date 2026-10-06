@@ -1,6 +1,6 @@
-# firstpass configuration.
+# the service configuration.
 #
-# Copy this file to %APPDATA%\firstpass\config.yaml and fill in the fields
+# Copy this file to %APPDATA%\the service\config.yaml and fill in the fields
 # marked REQUIRED below. Every field has a safe default except those four —
 # config.Default() leaves them empty on purpose, so a fresh install cannot
 # act on anything until it has been deliberately configured.
@@ -13,7 +13,7 @@
 # back to it. Comment the key out instead.
 
 # ---------------------------------------------------------------------------
-# REQUIRED — no default. firstpass will refuse to run until these are set.
+# REQUIRED — no default. the service will refuse to run until these are set.
 # ---------------------------------------------------------------------------
 
 # The Google Chat space to watch, in "spaces/<id>" form. Find it with the
@@ -22,16 +22,16 @@
 space: ""
 
 # Your own GitHub login, exactly as it appears on your PRs. Without this,
-# firstpass cannot tell your own pull requests apart from a colleague's and
+# the service cannot tell your own pull requests apart from a colleague's and
 # would review — and comment on — your own work.
 # REQUIRED — no default.
 github_login: ""
 
-# The GitHub organisations (or users) firstpass is allowed to touch. This is
+# The GitHub organisations (or users) the service is allowed to touch. This is
 # the blast-radius control: a PR link to any owner not on this list is
 # recorded and skipped, never cloned, never queried. The chat space is a
 # chat room, not an access boundary — someone will eventually paste a link
-# to an unrelated repository, and without this list firstpass would clone it
+# to an unrelated repository, and without this list the service would clone it
 # and post comments on it.
 # REQUIRED — no default. Comparison is case-insensitive.
 allow_owners: []
@@ -40,7 +40,7 @@ allow_owners: []
 
 # Path to a script that can read the configured Google Chat space and print
 # messages as JSON on stdout (see internal/chat for the expected shape).
-# firstpass does not talk to the Chat API directly — it drives this script
+# the service does not talk to the Chat API directly — it drives this script
 # as a subprocess, the way it drives `git` and `gh`. No such script ships
 # with this repository; you must supply or write your own.
 # REQUIRED — no default. It lives in the `paths:` block at the bottom of this
@@ -50,7 +50,7 @@ allow_owners: []
 # Safety — read this before changing it
 # ---------------------------------------------------------------------------
 
-# dry_run defaults to true. In dry-run mode firstpass runs the full pipeline
+# dry_run defaults to true. In dry-run mode the service runs the full pipeline
 # — including the checkout and the Claude review — but writes findings to a
 # report file under the state directory instead of posting them to GitHub.
 # Setting this to false (or passing -live to `scan`/`replay`, or running
@@ -74,7 +74,7 @@ allow_owners: []
 #
 # Every review body says in its first sentence that it is machine-written. A
 # dry run submits no verdict at all and writes what it would have been into
-# the report, so you can watch firstpass decide before it decides for real.
+# the report, so you can watch the service decide before it decides for real.
 dry_run: true
 
 # ---------------------------------------------------------------------------
@@ -143,14 +143,14 @@ pending_max_age: 168h
 fetch_limit: 50
 
 # Specific owner/repo pairs to carve out of an otherwise allowed owner.
-# Never acted on directly by firstpass; recorded terminal like any other
+# Never acted on directly by the service; recorded terminal like any other
 # disallowed PR.
 # Default: []
 deny_repos: []
 # deny_repos:
 #   - your-org/some-repo
 
-# Every place firstpass looks for pull requests.
+# Every place the service looks for pull requests.
 #
 # Both kinds are written here, so this file names every source rather than
 # naming one and implying the other. What it cannot do is switch the chat space
@@ -195,7 +195,7 @@ sources: []
 #     limit: 50
 #     # Review everything the source finds on its first sweep, however old.
 #     # Off by default: the pull requests already open when a source is
-#     # switched on are its history, and firstpass would post on all of them
+#     # switched on are its history, and the service would post on all of them
 #     # within minutes of being started.
 #     review_backlog: false
 
@@ -238,14 +238,14 @@ claude_args:
 # Default: "" (no compliance dimension)
 docs_root: ""
 
-# Where firstpass keeps its database, bare mirrors, worktrees and reports.
+# Where the service keeps its database, bare mirrors, worktrees and reports.
 # Must be an absolute path.
 #
-# Left out (as below), it defaults to %LOCALAPPDATA%\firstpass. Do not write
+# Left out (as below), it defaults to %LOCALAPPDATA%\the service. Do not write
 # `state_dir: ""`: an explicit empty string overrides the default rather than
-# falling back to it, and firstpass would refuse to start.
-# Default: %LOCALAPPDATA%\firstpass
-# state_dir: C:\Users\you\AppData\Local\firstpass
+# falling back to it, and the service would refuse to start.
+# Default: %LOCALAPPDATA%\the service
+# state_dir: C:\Users\you\AppData\Local\the service
 
 paths:
   # Path to the chat-reading script described in the REQUIRED section above.

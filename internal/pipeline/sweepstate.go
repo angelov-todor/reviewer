@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/angelov-todor/firstpass/internal/prref"
+	"github.com/angelov-todor/reviewer/internal/prref"
 )
 
 // sweepState is the state that candidates share while a sweep is running.
@@ -65,7 +65,7 @@ func newSweepState(maxReviews int) *sweepState {
 // pre-cap count and proceed: with a cap of 3 and three workers, three of them
 // can each see two attempts recorded and all three go on to review, for five
 // reviews against a cap of three. The cap exists to bound how many pull
-// requests firstpass writes comments on in one sweep, so overshooting it is
+// requests the service writes comments on in one sweep, so overshooting it is
 // not a cosmetic accounting error.
 func (s *sweepState) reserveReview() bool {
 	s.mu.Lock()

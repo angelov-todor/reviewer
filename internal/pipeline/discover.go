@@ -4,10 +4,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/angelov-todor/firstpass/internal/config"
-	"github.com/angelov-todor/firstpass/internal/ghpr"
-	"github.com/angelov-todor/firstpass/internal/prref"
-	"github.com/angelov-todor/firstpass/internal/store"
+	"github.com/angelov-todor/reviewer/internal/config"
+	"github.com/angelov-todor/reviewer/internal/ghpr"
+	"github.com/angelov-todor/reviewer/internal/prref"
+	"github.com/angelov-todor/reviewer/internal/store"
 )
 
 // sourceFound is one pull request a configured source offered.
@@ -20,7 +20,7 @@ type sourceFound struct {
 //
 // Failures are logged and skipped rather than failing the sweep. A source is
 // an addition to the chat space, never a replacement for it: a GitHub outage
-// or a rate limit must not stop firstpass reviewing what the team posted, and
+// or a rate limit must not stop the service reviewing what the team posted, and
 // the pull requests a source would have offered are offered again on the next
 // sweep, five minutes later, having lost nothing but the delay.
 func (p *Pipeline) discover(ctx context.Context) []sourceFound {
@@ -47,12 +47,12 @@ func (p *Pipeline) discover(ctx context.Context) []sourceFound {
 		// rather than after: a source switched on for the first time has no
 		// business reviewing what was already open. Those pull requests are
 		// its history -- eight on the organisation this runs against, half of
-		// them months old -- and firstpass would post on all of them within a
+		// them months old -- and the service would post on all of them within a
 		// quarter of an hour of being started.
 		//
 		// Exactly the rule the chat side has always had for a first run
 		// against a populated space, applied to a source. What comes after
-		// the moment firstpass started watching is offered; what was already
+		// the moment the service started watching is offered; what was already
 		// there is not.
 		id := src.ID(p.Cfg.GithubLogin)
 		since, watched, serr := p.Store.SourceSince(id)
@@ -124,7 +124,7 @@ func (p *Pipeline) discover(ctx context.Context) []sourceFound {
 			if !p.Cfg.OwnerAllowed(f.Ref.Owner) || p.Cfg.RepoDenied(f.Ref.Owner, f.Ref.Repo) {
 				continue
 			}
-			// Untouched since firstpass started watching this source, so it is
+			// Untouched since the service started watching this source, so it is
 			// part of the history the cold start excluded. A pull request
 			// somebody pushes to, comments on, or requests a review on lands
 			// after that moment and is offered.
@@ -150,7 +150,7 @@ func (p *Pipeline) discover(ctx context.Context) []sourceFound {
 // It answers the same question secondPassDue answers for a re-post -- is this
 // worth spending an Inspect on -- and it is not the rule. The rule is one
 // review per commit, and the head SHA gate below Inspect enforces it for every
-// candidate whatever found it. This only decides whether firstpass pays a `gh
+// candidate whatever found it. This only decides whether the service pays a `gh
 // pr view` to ask.
 //
 // GitHub's updated_at moves for a comment as readily as for a push, so this
@@ -158,7 +158,7 @@ func (p *Pipeline) discover(ctx context.Context) []sourceFound {
 // worth asking about, and the SHA gate turns away the ones that were only
 // talked about. The alternative -- inspecting every discovered pull request
 // every sweep -- costs one GitHub call per pull request per five minutes for
-// no new information, and firstpass shares its rate limit with the reviews.
+// no new information, and the service shares its rate limit with the reviews.
 func sourcePassDue(prev store.Review, activityAt time.Time) bool {
 	// Same first condition as a re-post, and for the same reasons: only a
 	// completed review can have a second pass, and a record that does not say

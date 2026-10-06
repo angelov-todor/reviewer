@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/angelov-todor/firstpass/internal/prref"
-	"github.com/angelov-todor/firstpass/internal/runner"
+	"github.com/angelov-todor/reviewer/internal/prref"
+	"github.com/angelov-todor/reviewer/internal/runner"
 )
 
 var ref = prref.PRRef{Owner: "Example-Org", Repo: "aex-balances", Number: 12}
@@ -97,7 +97,7 @@ func TestRunInvokesClaudeInTheWorktreeWithConfiguredArgs(t *testing.T) {
 	// followed by the whole prompt, or claude reads the PR URL as a second
 	// positional argument and the prompt loses its target -- and the same for
 	// --append-system-prompt and the verdict instruction. extraArgs stays
-	// last, so operator config can still override anything firstpass sets.
+	// last, so operator config can still override anything the service sets.
 	want := []string{
 		"-p", New(&runner.Fake{}, "claude", nil, true, t.TempDir()).Prompt(ref),
 		"--append-system-prompt", verdictInstruction,
@@ -202,8 +202,8 @@ func TestEvenAnApprovingLiveReviewKeepsItsOutput(t *testing.T) {
 // should have existed from the start.
 //
 // A live review that finishes without a verdict line is the one outcome
-// firstpass cannot explain from its own records: the review worked, the
-// comments are posted, and the only thing missing is the line firstpass
+// the service cannot explain from its own records: the review worked, the
+// comments are posted, and the only thing missing is the line the service
 // needed. Live output used to be discarded unconditionally, so fourteen
 // consecutive production reviews recorded "verdict unknown" and left nothing
 // whatsoever to read. Working out why in the end needed a throwaway pull

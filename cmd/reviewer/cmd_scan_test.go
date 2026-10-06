@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/angelov-todor/firstpass/internal/pipeline"
-	"github.com/angelov-todor/firstpass/internal/prref"
+	"github.com/angelov-todor/reviewer/internal/pipeline"
+	"github.com/angelov-todor/reviewer/internal/prref"
 )
 
 func TestRenderSweepListsEveryDecisionWithItsReason(t *testing.T) {

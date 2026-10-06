@@ -33,7 +33,7 @@ func (r PRRef) Key() string { return fmt.Sprintf("%s/%s#%d", r.Owner, r.Repo, r.
 // folded.
 //
 // It exists because a ref assembled by hand skipped that folding and produced
-// a second key for a pull request firstpass already had one for -- GitHub
+// a second key for a pull request the service already had one for -- GitHub
 // answers "AstraBit-CPT" where a chat link says "astrabit-cpt" -- which reads
 // through as a pull request reviewed twice, once under each spelling, and as a
 // stored record its own next sweep cannot find.
