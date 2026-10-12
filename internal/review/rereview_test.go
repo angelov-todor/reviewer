@@ -1,0 +1,114 @@
+package review
+
+import (
+	"strings"
+	"testing"
+)
+
+// TestTheIncrementDemandNamesTheCommand is the team's first recommendation.
+//
+// The reviewer cannot get the increment from its own checkout: the service
+// force-updates the mirror ref, so the previously reviewed commit is often
+// unreachable. The old system-prompt note said so and then asked the reviewer
+// to "work out what has changed from the pull request itself", which is vague
+// enough that a later pass re-read the whole change.
+//
+// GitHub still has the commit. Verified against a real repository: a compare
+// between a head reviewed a month earlier and the current one, on a branch
+// force-pushed since, answered with three commits and six files.
+func TestTheIncrementDemandNamesTheCommand(t *testing.T) {
+	got := reReviewClause(ref, PreviousPass{HeadSHA: prevSHA, Posted: true})
+
+	// The exact call, with the repository and the old SHA in it. A reviewer
+	// that has to compose this itself is a reviewer that might not.
+	want := "gh api repos/" + ref.Owner + "/" + ref.Repo + "/compare/" + prevSHA + "...HEAD"
+	if !strings.Contains(got, want) {
+		t.Errorf("the clause must name the command:\nwant %q\nin   %q", want, got)
+	}
+	for _, frag := range []string{"INCREMENT", "not the whole change again", "now fixed"} {
+		if !strings.Contains(got, frag) {
+			t.Errorf("missing %q from:\n%s", frag, got)
+		}
+	}
+}
+
+// A rebase or an amend makes the comparison report `diverged`, and then the
+// author's own work reappears in it even where nothing changed. A reviewer
+// that reads that as new work re-reviews the whole change and says the rebase
+// introduced it.
+func TestTheIncrementDemandHandlesARewrittenHistory(t *testing.T) {
+	got := reReviewClause(ref, PreviousPass{HeadSHA: prevSHA, Posted: true})
+	for _, frag := range []string{"diverged", "rebase", "do not read them as new work",
+		"only the base moved"} {
+		if !strings.Contains(got, frag) {
+			t.Errorf("missing %q from:\n%s", frag, got)
+		}
+	}
+}
+
+// TestTheVerificationRulesAreInTheTaskText covers the rest of the team's
+// recommendation, and where it has to live.
+//
+// This package measured an instruction in an appended system prompt being
+// ignored over fourteen consecutive production reviews while the same words
+// in the task text were followed. These are instructions, so they go in the
+// -p value with the other demands.
+func TestTheVerificationRulesAreInTheTaskText(t *testing.T) {
+	clause := priorClause(&PriorFeedback{Items: []PriorItem{{Surface: "comment", Author: "a"}}})
+
+	cases := map[string]string{
+		"a fix is read in the code, not taken on trust": "never by the author saying it is fixed",
+		"the author's push-back is an answer":           "reasoned push-back is an ANSWER",
+		"it does not hold back the verdict":             "do not let it hold back your verdict",
+		"another reviewer's claim is verified first":    "not evidence",
+	}
+	for why, frag := range cases {
+		if !strings.Contains(clause, frag) {
+			t.Errorf("%s: missing %q", why, frag)
+		}
+	}
+
+	// The one thing a push-back does not override, because the service
+	// enforces it independently of anything the reviewer decides.
+	if !strings.Contains(clause, "changes requested") {
+		t.Error("the clause must say that an outstanding `changes requested` review still stands")
+	}
+}
+
+// With no prior feedback there is nothing to verify and nothing to push back
+// against, so none of it is said. A prompt that carries rules about material
+// that does not exist spends the reviewer's attention on nothing.
+func TestTheVerificationRulesAreSilentWithoutFeedback(t *testing.T) {
+	if clause := priorClause(nil); clause != "" {
+		t.Errorf("no feedback must mean no clause, got %q", clause)
+	}
+	if clause := priorClause(&PriorFeedback{}); clause != "" {
+		t.Errorf("an empty list must mean no clause, got %q", clause)
+	}
+}
+
+// A first pass is asked none of it: there is no increment and nothing earlier
+// to check. The demand appears only once a pass has actually posted, which is
+// the same gate the system-prompt note is behind -- an earlier pass whose
+// findings went to a dry-run report left nothing on the pull request to
+// compare against.
+func TestAFirstPassIsNotAskedForAnIncrement(t *testing.T) {
+	rr := New(nil, "claude", nil, false, t.TempDir())
+
+	if p := rr.Prompt(ref, nil); strings.Contains(p, "INCREMENT") {
+		t.Error("a first pass has no increment to review")
+	}
+	notPosted := &PreviousPass{HeadSHA: prevSHA, Posted: false}
+	if p := rr.Prompt(ref, notPosted); strings.Contains(p, "INCREMENT") {
+		t.Error("a pass that posted nothing left nothing to compare against")
+	}
+	unchanged := &PreviousPass{HeadSHA: prevSHA, Posted: true, HeadUnchanged: true}
+	if p := rr.Prompt(ref, unchanged); strings.Contains(p, "INCREMENT") {
+		t.Error("a replay at the same commit has no increment: there is nothing between " +
+			"the reviewed commit and the current one")
+	}
+	posted := &PreviousPass{HeadSHA: prevSHA, Posted: true}
+	if p := rr.Prompt(ref, posted); !strings.Contains(p, "INCREMENT") {
+		t.Error("a later pass over new commits must be asked for the increment")
+	}
+}

@@ -540,6 +540,49 @@ how many were already decided, before it moves anything — they will not be
 reviewed unless somebody posts them again or you `replay` them — and
 `-print-only` shows the same list while leaving the watermark alone.
 
+### What a later pass does differently
+
+A pass over a pull request that has been reviewed before is asked for the
+**increment**, not the whole change again, and it is told exactly how to get
+it:
+
+    gh api repos/<owner>/<repo>/compare/<previously reviewed sha>...HEAD
+
+From GitHub rather than from the checkout, because the checkout often cannot
+answer: the service force-updates the mirror ref it checks out, so the
+previously reviewed commit is frequently unreachable there. GitHub keeps it —
+a compare against a head reviewed a month earlier, on a branch force-pushed
+since, still answers.
+
+When that comparison reports `diverged` the history was rewritten — a rebase,
+an amend, a force-push — and the author's own work reappears in it even where
+nothing changed. The reviewer is told not to read that as new work, and to say
+plainly when the change itself is unchanged and only the base moved.
+
+Alongside the increment, three rules about everything already said on the
+pull request:
+
+- **A fix is confirmed by reading the code**, never by the author saying it is
+  fixed. `fixed in abc123` is a claim to check.
+- **The author's own replies are read, and a reasoned push-back is an
+  answer.** An author who explains why they are not making a change has
+  answered the point: it is not raised again and it does not hold back the
+  verdict. A reviewer that cannot tell an argument from silence makes the
+  author argue the same case on every push.
+- **Another reviewer's claim is not evidence.** It is verified in the code
+  before it is repeated or acted on, because repeating it unverified lends it
+  a second voice it has not earned.
+
+The exception is a formal `changes requested` review that is still
+outstanding: the service withholds the approval on its own account while one
+stands, whatever anybody has said about it.
+
+All of this travels in the task text rather than the system prompt, and that
+placement is load-bearing. This project measured an instruction in an appended
+system prompt being ignored over fourteen consecutive production reviews while
+the same words in the task text were followed. Data belongs in the system
+prompt; demands belong in the task.
+
 ### One review per commit, whichever source found it
 
 A pull request posted in chat and returned by a search is reviewed **once**.

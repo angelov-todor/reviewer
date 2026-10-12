@@ -127,5 +127,5 @@ func priorClause(p *PriorFeedback) string {
 		"request, not only the newest commits: print `approve` only if the current code is sound " +
 		"AND every previously raised point that requires a change has been addressed in it. Minor " +
 		"nits need not block an approval. Do not re-post feedback that is already on the pull " +
-		"request."
+		"request." + verificationClause
 }

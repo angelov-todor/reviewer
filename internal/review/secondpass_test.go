@@ -45,9 +45,10 @@ func TestSecondPassNoteReachesTheSystemPromptAndNotThePrompt(t *testing.T) {
 		t.Fatalf("Calls = %+v", f.Calls)
 	}
 	args := f.Calls[0].Args
+	prev := PreviousPass{HeadSHA: prevSHA, Posted: true}
 	want := []string{
-		"-p", rr.Prompt(ref),
-		"--append-system-prompt", verdictInstruction + "\n\n" + secondPassNote(PreviousPass{HeadSHA: prevSHA, Posted: true}),
+		"-p", rr.Prompt(ref, &prev),
+		"--append-system-prompt", verdictInstruction + "\n\n" + secondPassNote(prev),
 		"--permission-mode", "bypassPermissions",
 	}
 	if !slices.Equal(args, want) {
@@ -64,11 +65,30 @@ func TestSecondPassNoteReachesTheSystemPromptAndNotThePrompt(t *testing.T) {
 	// The newline check that used to be here is gone: the prompt is
 	// deliberately multi-line now, because the verdict ask has to be restated
 	// in the user turn. What still matters is that the second-pass note is not
-	// in there -- it is long, it is about history rather than the task, and
-	// the system prompt is where it belongs.
-	for _, frag := range []string{"previous automated pass", "restate", prevSHA[:12], verdictInstruction} {
+	// in there. The narrative belongs in the system prompt: it is long, and it
+	// is about history rather than about the task.
+	for _, frag := range []string{"previous automated pass", "restate", verdictInstruction} {
 		if strings.Contains(prompt, frag) {
-			t.Errorf("-p = %q must not carry %q: it would become the slash command's $ARGUMENTS", prompt, frag)
+			t.Errorf("-p = %q must not carry the system-prompt narrative %q", prompt, frag)
+		}
+	}
+
+	// What the -p value MUST carry is the demand, and this reverses what this
+	// test asserted before.
+	//
+	// It used to require that nothing about the earlier pass appeared in -p at
+	// all, on the reasoning that such material belonged in the system prompt.
+	// That is right for the history and wrong for the instruction: this
+	// package already measured an appended system prompt being ignored over
+	// fourteen consecutive production reviews while the same words in the task
+	// text were followed. The symptom the team then reported was a later pass
+	// re-reading the whole change instead of the increment, because the system
+	// prompt's "work out what has changed" was the only thing asking. Data in
+	// the system prompt, demands in -p.
+	for _, frag := range []string{"INCREMENT", "gh api repos/", prevSHA, "diverged"} {
+		if !strings.Contains(prompt, frag) {
+			t.Errorf("-p must carry %q: an instruction in the system prompt is not reliably "+
+				"followed, which is why the increment demand lives here", frag)
 		}
 	}
 }
@@ -83,7 +103,7 @@ func TestFirstPassArgvCarriesNoSecondPassNote(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []string{
-		"-p", rr.Prompt(ref),
+		"-p", rr.Prompt(ref, nil),
 		"--append-system-prompt", verdictInstruction,
 		"--permission-mode", "bypassPermissions",
 	}
@@ -95,7 +115,21 @@ func TestFirstPassArgvCarriesNoSecondPassNote(t *testing.T) {
 // The -p value must be byte-identical across passes: the dry-run/live
 // difference stays exactly --comment, and a pass number is not something the
 // slash command has ever been handed.
-func TestThePromptIsByteIdenticalAcrossPasses(t *testing.T) {
+// TestThePromptDiffersOnALaterPass reverses this file's earlier invariant,
+// deliberately.
+//
+// The -p value used to be byte-identical on every pass, so that a later pass
+// asked exactly the question a first pass asks and every piece of history
+// travelled in the system prompt. That does not survive what this package
+// measured elsewhere: an instruction in an appended system prompt is not
+// reliably followed over a long agentic run. The consequence reached
+// production -- a later pass re-read the whole change rather than the
+// increment, which is what the team reported -- so the demand now rides in the
+// task text and the two prompts necessarily differ.
+//
+// What must still be identical is a first pass's prompt across both modes,
+// which TestTheDryRunAndLivePromptsDifferByExactlyTheCommentFlag covers.
+func TestThePromptDiffersOnALaterPass(t *testing.T) {
 	for _, dry := range []bool{true, false} {
 		first, second := fakeWithReply("x"), fakeWithReply("x")
 		if _, err := New(first, "claude", nil, dry, t.TempDir()).
@@ -108,8 +142,16 @@ func TestThePromptIsByteIdenticalAcrossPasses(t *testing.T) {
 		}
 		a := first.Calls[0].Args[slices.Index(first.Calls[0].Args, "-p")+1]
 		b := second.Calls[0].Args[slices.Index(second.Calls[0].Args, "-p")+1]
-		if a != b {
-			t.Errorf("dry=%v: first-pass -p = %q, second-pass -p = %q; they must be identical", dry, a, b)
+		if a == b {
+			t.Errorf("dry=%v: a later pass must be asked for the increment, but its -p is "+
+				"byte-identical to a first pass's: %q", dry, a)
+		}
+		// Additive, not a replacement: a later pass is asked everything a
+		// first pass is asked, plus the increment. Anything else would mean a
+		// second pass had quietly dropped part of the review.
+		if !strings.HasPrefix(b, strings.TrimSuffix(a, promptVerdictAsk)) {
+			t.Errorf("dry=%v: a later pass's prompt must extend a first pass's, not replace it:\n"+
+				"first:  %q\nsecond: %q", dry, a, b)
 		}
 	}
 }
@@ -275,7 +317,8 @@ func assertAdmitsUncertainty(t *testing.T, note string) {
 	}
 }
 
-// Same wire as the complete note: --append-system-prompt, never the -p value.
+// The incomplete note travels the same way the complete one does: its
+// narrative in --append-system-prompt, the increment demand in -p.
 func TestTheIncompleteNoteAlsoTravelsAsASystemPromptAndNotInThePrompt(t *testing.T) {
 	f := fakeWithReply("posted")
 	rr := New(f, "claude", nil, false, t.TempDir())
@@ -285,7 +328,7 @@ func TestTheIncompleteNoteAlsoTravelsAsASystemPromptAndNotInThePrompt(t *testing
 		t.Fatal(err)
 	}
 	want := []string{
-		"-p", rr.Prompt(ref),
+		"-p", rr.Prompt(ref, pp),
 		"--append-system-prompt", verdictInstruction + "\n\n" + secondPassNote(*pp),
 	}
 	if !slices.Equal(f.Calls[0].Args, want) {
@@ -315,7 +358,7 @@ func TestAPreviousPassThatPostedNothingSendsNoNote(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []string{
-		"-p", rr.Prompt(ref),
+		"-p", rr.Prompt(ref, nil),
 		"--append-system-prompt", verdictInstruction,
 		"--permission-mode", "bypassPermissions",
 	}

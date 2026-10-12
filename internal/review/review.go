@@ -262,7 +262,7 @@ const (
 // The command and its flag come first and are unchanged, so the form that has
 // been exercised against real claude is still exactly what is asked; see
 // promptVerdictAsk for why the verdict requirement is repeated here.
-func (rr *Runner) Prompt(ref prref.PRRef) string {
+func (rr *Runner) Prompt(ref prref.PRRef, previous *PreviousPass) string {
 	p := "Review pull request " + ref.URL() + " for correctness, performance, security and " +
 		"maintainability. Read the change and whatever context you need to judge it. Use " +
 		"whichever installed review skills apply to this repository." +
@@ -271,6 +271,13 @@ func (rr *Runner) Prompt(ref prref.PRRef) string {
 		p += dryRunPostingClause
 	} else {
 		p += livePostingClause
+	}
+	// Only when that pass actually posted. An earlier pass whose findings went
+	// to a dry-run report left nothing on the pull request, so there is no
+	// increment worth isolating and nothing of its own to check against: the
+	// same gate secondPassNote is behind.
+	if previous != nil && previous.Posted && !previous.HeadUnchanged {
+		p += reReviewClause(ref, *previous)
 	}
 	return p + promptVerdictAsk
 }
@@ -409,7 +416,8 @@ const verdictScopeNote = "Your VERDICT is a separate question from what you comm
 	"covers the whole pull request as it now stands -- not only the newest commits. Print " +
 	"`approve` only if the current code is sound AND every previously raised point that requires " +
 	"a change has been addressed in it, including points raised by your earlier passes and by " +
-	"human reviewers. Minor nits need not block an approval."
+	"human reviewers. Minor nits need not block an approval, and neither does a point the author " +
+	"has answered with reasons rather than a change -- an argument is an answer."
 
 func secondPassNote(pp PreviousPass) string {
 	short := ShortSHA(pp.HeadSHA)
@@ -454,11 +462,16 @@ func secondPassNote(pp PreviousPass) string {
 			"worth raising.\n\n" + verdictScopeNote
 	}
 
+	// The checkout caveat stays; the instruction that followed it does not.
+	// "Work out what has changed from the pull request itself" was vague
+	// enough that a later pass re-read the whole change, which is what the
+	// team noticed. The -p value names the exact command instead, because an
+	// instruction in an appended system prompt is not reliably followed over a
+	// long agentic run and a demand in the task text is. See reReviewClause.
 	return head + "\n\n" +
-		"Review the pull request as it now stands, not a diff against " + short + ": the service " +
-		"force-updates the mirror ref it checks out, so " + short + " may no longer be reachable " +
-		"from the checkout you are looking at. Work out what has changed from the pull request " +
-		"itself."
+		"The commit " + short + " may no longer be reachable from the checkout you are looking " +
+		"at: the service force-updates the mirror ref it checks out. Your task text says how to " +
+		"get the increment from GitHub instead."
 }
 
 // ReportError reports that the review itself finished but its dry-run report
@@ -523,7 +536,7 @@ func (rr *Runner) Run(ctx context.Context, dir string, ref prref.PRRef, previous
 	// stable prefix cacheable, keeps the material about *this* pull request
 	// from being buried under material about the others, and makes the
 	// oversize check below able to drop it without disturbing anything else.
-	prompt := rr.Prompt(ref) + priorClause(prior)
+	prompt := rr.Prompt(ref, previous) + priorClause(prior)
 
 	// The sibling block is added only if the command line can carry it, and it
 	// is the piece that gives way because it is the only one that is both
