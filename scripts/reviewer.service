@@ -29,6 +29,13 @@ Environment=HOME=/var/lib/reviewer
 # read-only: an updater that tried anyway would fail on every start and say so
 # in the journal, which is noise about a thing nobody asked for.
 Environment=DISABLE_AUTOUPDATER=1
+# Optional, and the leading - means the service still starts without it.
+# `claude setup-token` prints a long-lived token rather than storing one, so
+# on a box authenticated that way the token lives here as
+# CLAUDE_CODE_OAUTH_TOKEN. Root-owned and group-readable by the service: it is
+# a credential, and it must not pass through anybody's shell history to get
+# here.
+EnvironmentFile=-/etc/reviewer/claude.env
 WorkingDirectory=/var/lib/reviewer
 ExecStart=/usr/local/bin/reviewer watch -config /etc/reviewer/config.yaml
 

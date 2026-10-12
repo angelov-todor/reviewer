@@ -147,3 +147,68 @@ func TestGhAuthRefusesAnEmptyAnswer(t *testing.T) {
 		t.Fatal("gh naming no account must not read as authenticated")
 	}
 }
+
+// TestClaudeAnswersCatchesAnUnauthenticatedCLI is the false pass this check
+// was rewritten to stop, in the words the real box produced.
+//
+// A freshly provisioned machine printed "Not logged in · Please run /login"
+// and exited ZERO. The old check ran `claude --version`, which passed, so
+// doctor reported "claude works" on a box that could not review a single pull
+// request -- and the operator had run the login step, it simply had not taken.
+func TestClaudeAnswersCatchesAnUnauthenticatedCLI(t *testing.T) {
+	f := &runner.Fake{Replies: []runner.Reply{
+		// Exit code zero, exactly as observed.
+		{Match: "-p", Result: runner.Result{Stdout: []byte("Not logged in · Please run /login\n")}},
+	}}
+	if _, err := claudeAnswers(context.Background(), f, "claude"); err == nil {
+		t.Fatal("an unauthenticated claude must fail the check despite exiting zero")
+	} else if !strings.Contains(err.Error(), "setup-token") {
+		t.Errorf("the error must say how to fix it: %v", err)
+	}
+}
+
+// The other credential failures are worth the same treatment: each is a box
+// that cannot review anything while reporting a version perfectly well.
+func TestClaudeAnswersCatchesTheOtherCredentialFailures(t *testing.T) {
+	for _, out := range []string{
+		"Invalid API key · Please run /login",
+		"API Error: authentication_error",
+		"Your credit balance is too low to access the Anthropic API",
+	} {
+		f := &runner.Fake{Replies: []runner.Reply{
+			{Match: "-p", Result: runner.Result{Stdout: []byte(out)}},
+		}}
+		if _, err := claudeAnswers(context.Background(), f, "claude"); err == nil {
+			t.Errorf("must be caught: %q", out)
+		}
+	}
+}
+
+func TestClaudeAnswersPassesWhenItAnswers(t *testing.T) {
+	f := &runner.Fake{Replies: []runner.Reply{
+		{Match: "-p", Result: runner.Result{Stdout: []byte("ok\n")}},
+	}}
+	detail, err := claudeAnswers(context.Background(), f, "claude")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if detail == "" {
+		t.Error("a pass must say what it established, not just pass")
+	}
+}
+
+// A model that editorialises over a one-word instruction is not a reason to
+// refuse to start: the credentials plainly work, which is the only thing this
+// check is asking about.
+func TestClaudeAnswersToleratesAChattyReply(t *testing.T) {
+	f := &runner.Fake{Replies: []runner.Reply{
+		{Match: "-p", Result: runner.Result{Stdout: []byte("Sure! Here you go.\n")}},
+	}}
+	detail, err := claudeAnswers(context.Background(), f, "claude")
+	if err != nil {
+		t.Errorf("a chatty but authenticated claude must pass: %v", err)
+	}
+	if !strings.Contains(detail, "not as asked") {
+		t.Errorf("the detail should say it answered oddly: %q", detail)
+	}
+}
