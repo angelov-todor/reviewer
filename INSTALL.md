@@ -94,6 +94,27 @@ and paste the code back. It stores a long-lived token under
 `/var/lib/reviewer/.claude`, which is the whole point: the service can then
 run unattended.
 
+`setup-token` prints a token rather than storing one, so it has to be put
+where the service will find it. Write it to the env file the unit reads,
+without it passing through your shell history:
+
+```bash
+sudo install -m 0640 -o root -g reviewer /dev/null /etc/reviewer/claude.env
+sudo tee /etc/reviewer/claude.env >/dev/null   # then paste:
+CLAUDE_CODE_OAUTH_TOKEN=<the token setup-token printed>
+# Ctrl-D
+```
+
+Check it took, which is the part that is easy to get wrong:
+
+```bash
+sudo -u reviewer -H bash -c 'set -a; . /etc/reviewer/claude.env; claude -p "say ok"'
+```
+
+An unauthenticated claude prints `Not logged in · Please run /login` **and
+exits zero**, so nothing but reading the output tells you. `reviewer doctor`
+now runs exactly that probe for you.
+
 This is the step that cannot be scripted and the one most likely to go wrong
 on a headless box. If it fails, the fallback is an API key —
 `ANTHROPIC_API_KEY` in the unit's environment — but a key is billed

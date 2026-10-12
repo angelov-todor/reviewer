@@ -56,6 +56,18 @@ func openApp(configPath string, live bool, withReview bool) (*app, error) {
 	}
 
 	log := newLogger()
+
+	// Before any subprocess: claude and gh both read their credentials from
+	// the environment, so a value loaded after the first call is a value that
+	// did not apply to it.
+	if n, err := cfg.LoadEnvFile(); err != nil {
+		return nil, err
+	} else if n > 0 {
+		// The count, never the names or the values: this file holds a
+		// credential and the log is read by whoever can read the journal.
+		log.Info("loaded environment from env_file", "variables", n, "path", cfg.EnvFile)
+	}
+
 	r := runner.OS{}
 
 	// Left nil when no space is configured. The pipeline treats a nil Chat as

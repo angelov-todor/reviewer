@@ -114,9 +114,16 @@ func cmdDoctor(args []string) error {
 		add("git works", bounded(func(ctx context.Context) error {
 			return version(ctx, r, cfg.Paths.Git, "--version")
 		}), cfg.Paths.Git)
-		add("claude works", bounded(func(ctx context.Context) error {
-			return version(ctx, r, cfg.Paths.Claude, "--version")
-		}), cfg.Paths.Claude)
+		// Asked to do the thing, not asked its version. See claudeAnswers:
+		// an unauthenticated claude prints its complaint and exits zero, so a
+		// version check passes on a box that cannot review anything.
+		var claudeDetail string
+		cerr := bounded(func(ctx context.Context) error {
+			var err error
+			claudeDetail, err = claudeAnswers(ctx, r, cfg.Paths.Claude)
+			return err
+		})
+		add("claude works", cerr, claudeDetail)
 		// The login is read after the check has run, for the same reason
 		// scopeDetail is below: Go does not order a plain variable read
 		// against a function call in the same argument list.
@@ -428,4 +435,65 @@ func loginDetail(login, gh string) string {
 		return gh
 	}
 	return "posting as " + login
+}
+
+// notLoggedIn are the things claude says when it has no usable credentials.
+//
+// Matched on the output because the exit status does not carry it: on a freshly
+// provisioned box claude printed "Not logged in · Please run /login" and
+// exited **zero**, so `claude --version` passed and doctor reported "claude
+// works" on a machine that could not review a single pull request. The
+// operator had done the login step, it had not taken, and nothing said so.
+var notLoggedIn = []string{
+	"not logged in",
+	"please run /login",
+	"invalid api key",
+	"authentication_error",
+	"credit balance is too low",
+}
+
+// claudeAnswers checks that claude can actually run a prompt, and returns what
+// to show on a pass.
+//
+// It costs a few hundred tokens per doctor run. That is the price of the only
+// question worth asking: a version number proves the binary is installed,
+// which was never in doubt, while this proves the credentials work -- and an
+// expired token is the most likely future failure on an unattended box, where
+// the symptom is otherwise every review failing at once for no visible reason.
+func claudeAnswers(ctx context.Context, r runner.Runner, bin string) (string, error) {
+	const probe = "Reply with exactly the word ok and nothing else."
+	res, err := r.Run(ctx, "", bin, "-p", probe)
+	if err != nil {
+		return "", err
+	}
+	out := strings.ToLower(strings.TrimSpace(string(res.Stdout)) + " " +
+		strings.TrimSpace(string(res.Stderr)))
+	for _, phrase := range notLoggedIn {
+		if strings.Contains(out, phrase) {
+			return "", fmt.Errorf("claude is installed but has no working credentials (%q): "+
+				"run `claude setup-token` as this user, or set CLAUDE_CODE_OAUTH_TOKEN", phrase)
+		}
+	}
+	if res.ExitCode != 0 {
+		return "", fmt.Errorf("%s exit %d: %s", bin, res.ExitCode,
+			strings.TrimSpace(string(res.Stderr)))
+	}
+	// Answered, but not with the one word asked for. Reported rather than
+	// failed: the credentials plainly work, and a model that editorialises
+	// over a one-word instruction is not a reason to refuse to start.
+	if !strings.Contains(out, "ok") {
+		return "answered, but not as asked: " + firstLine(string(res.Stdout)), nil
+	}
+	return "answered a prompt", nil
+}
+
+func firstLine(s string) string {
+	if i := strings.IndexByte(s, '\n'); i >= 0 {
+		s = s[:i]
+	}
+	s = strings.TrimSpace(s)
+	if len(s) > 60 {
+		s = s[:60] + "…"
+	}
+	return s
 }
