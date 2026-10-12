@@ -1,6 +1,10 @@
 package review
 
-import "github.com/angelov-todor/reviewer/internal/prref"
+import (
+	"strconv"
+
+	"github.com/angelov-todor/reviewer/internal/prref"
+)
 
 // reReviewClause tells a later pass to review the increment rather than the
 // whole change again, and how to get it.
@@ -19,13 +23,22 @@ import "github.com/angelov-todor/reviewer/internal/prref"
 // re-read the whole change. GitHub still has the commit: a compare against a
 // reviewed head from a month earlier, on a branch that had been force-pushed
 // since, answered with three commits and six files.
+//
+// The head is named as refs/pull/N/head, not as HEAD, which was this clause's
+// first mistake. In a compare URL, HEAD is the repository's default branch: on
+// a real pull request that turned `ahead=3, files=6` into `diverged, ahead=103,
+// behind=2, files=300` -- the whole of master, which is worse than re-reading
+// the change. The pull ref gives the identical answer to the explicit head
+// SHA, needs no second call to resolve it, and works when the branch lives on
+// a fork.
 func reReviewClause(ref prref.PRRef, prev PreviousPass) string {
 	short := ShortSHA(prev.HeadSHA)
 	repo := ref.Owner + "/" + ref.Repo
 	return "\n\nThis pull request was reviewed before, at commit " + short +
 		". Review the INCREMENT since then, not the whole change again. Get it from GitHub " +
 		"rather than from this checkout, which may no longer contain " + short + ":" +
-		"\n\n    gh api repos/" + repo + "/compare/" + prev.HeadSHA + "..." + "HEAD" +
+		"\n\n    gh api repos/" + repo + "/compare/" + prev.HeadSHA + "...refs/pull/" +
+		strconv.Itoa(ref.Number) + "/head" +
 		"\n\nComment on what that shows, plus whether each point raised earlier is now fixed." +
 		"\n\nIf that comparison reports `diverged`, the history was rewritten -- a rebase, an " +
 		"amend or a force-push. The author's own changes then reappear in the comparison even " +

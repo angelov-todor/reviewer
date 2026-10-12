@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/angelov-todor/reviewer/internal/config"
@@ -196,6 +197,14 @@ func (p *Pipeline) keepable(src config.Source, found []ghpr.Found, since time.Ti
 			if src.ExcludeBots && f.IsBot {
 				continue
 			}
+			// Applied here, not only in the query. The search path excludes
+			// these authors server-side; the all-open path has no query to put
+			// them in, so without this exclude_authors was honoured in one
+			// mode and silently ignored in the other. Silently is the problem:
+			// the config says what it says in both.
+			if excludedAuthor(src.ExcludeAuthors, f.Author) {
+				continue
+			}
 			// The same allowlist every candidate passes, applied here as well
 			// so a misconfigured source is visible as an empty result rather
 			// than as a sweep full of refusals.
@@ -265,4 +274,30 @@ func (p *Pipeline) secondPassPrompted(prev store.Review, c candidate) bool {
 	// TestAPendingRowWithNoRecordedProvenanceIsStillNeverASecondPass, both of
 	// which fail if this stops being true.
 	return sourcePassDue(prev, c.activityAt)
+}
+
+// excludedAuthor reports whether this login is one the source excludes.
+//
+// The two worlds spell the same actor differently. A query exclusion is
+// written the way GitHub's search wants it -- the dependabot app is
+// "app/dependabot" there -- while the author of a pull request comes back as
+// its login, "dependabot[bot]". Matching has to tolerate both, or a config
+// that works in one discovery mode silently fails in the other, which is the
+// defect this function was added to fix.
+func excludedAuthor(excluded []string, login string) bool {
+	if login == "" {
+		return false
+	}
+	norm := func(s string) string {
+		s = strings.ToLower(strings.TrimSpace(s))
+		s = strings.TrimPrefix(s, "app/")
+		return strings.TrimSuffix(s, "[bot]")
+	}
+	want := norm(login)
+	for _, e := range excluded {
+		if e != "" && norm(e) == want {
+			return true
+		}
+	}
+	return false
 }

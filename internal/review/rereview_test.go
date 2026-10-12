@@ -21,7 +21,8 @@ func TestTheIncrementDemandNamesTheCommand(t *testing.T) {
 
 	// The exact call, with the repository and the old SHA in it. A reviewer
 	// that has to compose this itself is a reviewer that might not.
-	want := "gh api repos/" + ref.Owner + "/" + ref.Repo + "/compare/" + prevSHA + "...HEAD"
+	want := "gh api repos/" + ref.Owner + "/" + ref.Repo + "/compare/" + prevSHA +
+		"...refs/pull/12/head"
 	if !strings.Contains(got, want) {
 		t.Errorf("the clause must name the command:\nwant %q\nin   %q", want, got)
 	}
@@ -110,5 +111,29 @@ func TestAFirstPassIsNotAskedForAnIncrement(t *testing.T) {
 	posted := &PreviousPass{HeadSHA: prevSHA, Posted: true}
 	if p := rr.Prompt(ref, posted); !strings.Contains(p, "INCREMENT") {
 		t.Error("a later pass over new commits must be asked for the increment")
+	}
+}
+
+// TestTheCompareNamesThePullRequestNotTheDefaultBranch is the bug this clause
+// shipped with, caught in self-review against a real repository.
+//
+// The first version ended the compare URL with `...HEAD`. In a compare URL
+// HEAD is the REPOSITORY's default branch, not the pull request's head: on a
+// real pull request that turned `ahead=3, files=6` into `diverged, ahead=103,
+// behind=2, files=300` -- the whole of master. A reviewer following it would
+// have reviewed every unrelated change on the default branch, which is worse
+// than re-reading the pull request it was meant to avoid.
+func TestTheCompareNamesThePullRequestNotTheDefaultBranch(t *testing.T) {
+	got := reReviewClause(ref, PreviousPass{HeadSHA: prevSHA, Posted: true})
+
+	// refs/pull/N/head returned the identical answer to the explicit head SHA
+	// when measured, needs no second call to resolve, and works when the
+	// branch lives on a fork.
+	want := "/compare/" + prevSHA + "...refs/pull/12/head"
+	if !strings.Contains(got, want) {
+		t.Errorf("want %q in:\n%s", want, got)
+	}
+	if strings.Contains(got, "...HEAD") {
+		t.Error("`...HEAD` compares against the default branch, not the pull request")
 	}
 }
