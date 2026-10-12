@@ -8,12 +8,27 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/angelov-todor/reviewer/internal/chat"
 	"github.com/angelov-todor/reviewer/internal/config"
 	"github.com/angelov-todor/reviewer/internal/pipeline"
 )
+
+// stopSignals are the signals that end the watch loop cleanly.
+//
+// SIGTERM is not decoration: it is what systemd sends on `systemctl stop` and
+// `systemctl restart`, and it was missing. Trapping only SIGINT meant the
+// daemon died by Go's default disposition under the service manager it is
+// meant to run under -- a review in flight killed outright rather than
+// cancelled, no "stopping" line in the journal, and on a restart a pull
+// request left with half its comments posted and nothing recording that the
+// run did not finish.
+//
+// A variable rather than an argument list at the call site so that dropping
+// one of them fails a test; see TestStopSignalsIncludeWhatSystemdSends.
+var stopSignals = []os.Signal{os.Interrupt, syscall.SIGTERM}
 
 func cmdWatch(args []string) error {
 	fs := flag.NewFlagSet("watch", flag.ExitOnError)
@@ -39,7 +54,7 @@ func cmdWatch(args []string) error {
 
 	log := newLogger()
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	ctx, stop := signal.NotifyContext(context.Background(), stopSignals...)
 	defer stop()
 
 	log.Info("watching",

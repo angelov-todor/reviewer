@@ -443,3 +443,54 @@ func TestASourceKeepsItsIdentityWhenTheListIsReordered(t *testing.T) {
 		t.Error("the owner's case must not change a source's identity")
 	}
 }
+
+// TestAGitHubOnlySweepNeedsNoChat is what the Linux service box actually runs.
+//
+// No space, no chat client, no watermark. The sweep must review what the
+// source offers and never touch the chat half -- which on that box would mean
+// shelling out to a Python script that is not installed, in order to read a
+// space nobody configured.
+func TestAGitHubOnlySweepNeedsNoChat(t *testing.T) {
+	h := newHarness(t, nil)
+	// Deliberately nil, exactly as openApp leaves it when no space is set.
+	h.p.Chat = nil
+	h.prs.discovered = []ghpr.Found{found("aex-balances", 12, time.Now())}
+	h.prs.info[verdictKey] = ghpr.PRInfo{State: "OPEN", Author: "colleague", HeadSHA: "sha1"}
+	h.cfg.Sources = []config.Source{aSource()}
+	h.apply()
+	seedWatched(t, h, aSource(), time.Now().Add(-24*time.Hour))
+
+	rep, err := h.p.Sweep(context.Background(), Options{})
+	if err != nil {
+		t.Fatalf("a sweep with no chat configured must not fail: %v", err)
+	}
+	if d, ok := decisionFor(rep, verdictKey); !ok || d.Action != ActionReview {
+		t.Fatalf("the discovered pull request must still be reviewed, got %+v", d)
+	}
+	if rep.MessagesScanned != 0 {
+		t.Errorf("MessagesScanned = %d; nothing read a space", rep.MessagesScanned)
+	}
+	// The cold-start guard belongs to chat and must not fire here: a GitHub
+	// source has its own, recorded per source, and reporting a chat cold start
+	// would stop the sweep before it reviewed anything.
+	if rep.ColdStart {
+		t.Error("a GitHub-only sweep has no chat cold start to perform")
+	}
+}
+
+// And a sweep with no chat and no source does nothing, rather than failing.
+// `reviewer scan` on a half-configured box should report an empty sweep, not
+// an error that reads like a broken dependency.
+func TestASweepWithNothingConfiguredIsQuiet(t *testing.T) {
+	h := newHarness(t, nil)
+	h.p.Chat = nil
+	h.apply()
+
+	rep, err := h.p.Sweep(context.Background(), Options{})
+	if err != nil {
+		t.Fatalf("nothing configured is not an error at sweep time: %v", err)
+	}
+	if len(rep.Decisions) != 0 || rep.Reviewed != 0 {
+		t.Errorf("nothing should have happened: %+v", rep)
+	}
+}

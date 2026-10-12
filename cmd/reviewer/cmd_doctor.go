@@ -87,7 +87,12 @@ func cmdDoctor(args []string) error {
 	if err == nil {
 		add("config valid", explainValidate(cfg, *cfgPath), fmt.Sprintf("dry_run=%v allow_owners=%v", cfg.DryRun, cfg.AllowOwners))
 		add("state dir writable", writable(cfg.StateDir), cfg.StateDir)
-		add("chat.py present", exists(cfg.Paths.ChatScript), cfg.Paths.ChatScript)
+		// Only when a space is configured. On a GitHub-only installation
+		// there is no script to find, and reporting its absence as a failure
+		// would make a correct configuration look broken.
+		if cfg.ChatConfigured() {
+			add("chat.py present", exists(cfg.Paths.ChatScript), cfg.Paths.ChatScript)
+		}
 		// Only when configured: docs_root is optional, and an install without
 		// one is not broken, it just gets no compliance dimension.
 		//
@@ -165,22 +170,29 @@ func cmdDoctor(args []string) error {
 			add(fmt.Sprintf("source %d (%s) works", i+1, src.Type), derr, detail)
 		}
 
-		ch := chat.New(r, cfg.Paths.Python, cfg.Paths.ChatScript, cfg.Space)
-		var named bool
-		nerr := bounded(func(ctx context.Context) error {
-			var err error
-			named, err = ch.HasNamedRooms(ctx)
-			return err
-		})
-		switch {
-		case nerr != nil:
-			add("google chat reachable", nerr, "")
-		case !named:
-			add("google chat account", errors.New(
-				"this account can see no named spaces — two Google accounts exist on this machine "+
-					"and the personal one lists none; re-run `python auth.py login` as the work account"), "")
-		default:
-			add("google chat account", nil, "named spaces visible")
+		// The two Google Chat checks run only when a space is configured.
+		// Without the guard a GitHub-only installation shells out to a Python
+		// script that is not there and reports the failure as "google chat
+		// reachable" -- a red check about a feature the operator chose not to
+		// use, on a box that has no browser to authenticate one with.
+		if cfg.ChatConfigured() {
+			ch := chat.New(r, cfg.Paths.Python, cfg.Paths.ChatScript, cfg.Space)
+			var named bool
+			nerr := bounded(func(ctx context.Context) error {
+				var err error
+				named, err = ch.HasNamedRooms(ctx)
+				return err
+			})
+			switch {
+			case nerr != nil:
+				add("google chat reachable", nerr, "")
+			case !named:
+				add("google chat account", errors.New(
+					"this account can see no named spaces — two Google accounts exist on this machine "+
+						"and the personal one lists none; re-run `python auth.py login` as the work account"), "")
+			default:
+				add("google chat account", nil, "named spaces visible")
+			}
 		}
 	}
 

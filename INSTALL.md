@@ -81,6 +81,11 @@ reaching for it.
 
 ## 5. Configure
 
+The template is GitHub-only: no chat space, so no Python, and no
+browser-based Google login that a headless box cannot perform. `doctor` skips
+the two chat checks when no space is configured, so a complete configuration
+here is eight checks rather than ten.
+
 Edit `/etc/reviewer/config.yaml`. The template leaves `github_login` as
 `CHANGE-ME` on purpose: the service needs it to recognise its own reviews and
 to skip pull requests you authored yourself.
@@ -130,7 +135,9 @@ restart — which also means a paused service stays paused across a reboot
 until you resume it.
 
 **Stopping it without killing a review mid-flight:** `pause` first, wait for
-the current sweep to finish, then `systemctl stop reviewer`. A review killed
+the current sweep to finish, then `systemctl stop reviewer`. The daemon traps
+SIGTERM, so a stop cancels cleanly and logs `stopping` — but a review already
+running is cancelled, not waited for. A review killed
 part way through may have posted some of its comments, and nothing on GitHub
 records that it did not finish.
 
