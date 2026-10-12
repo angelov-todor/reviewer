@@ -38,6 +38,10 @@ type Query struct {
 	// that trips a secondary rate limit quickly, which matters because the
 	// daemon shares that budget with every review it runs.
 	Limit int
+	// AllOpen asks for every open pull request in the matching repositories
+	// instead of only those with a review requested. It changes which API is
+	// used: see DiscoverAllOpen.
+	AllOpen bool
 }
 
 // Found is one pull request a source offers, with the timestamp that says
@@ -114,6 +118,11 @@ type Page struct {
 // reviews is a bad trade for pull requests further down a list sorted by
 // recency.
 func (c *Client) Discover(ctx context.Context, q Query) (Page, error) {
+	// A different question needs a different API, and the search endpoint is
+	// the wrong one for "everything open": it is incomplete and stale here.
+	if q.AllOpen {
+		return c.DiscoverAllOpen(ctx, q)
+	}
 	if q.Owner == "" || q.ReviewRequestedFor == "" {
 		return Page{}, fmt.Errorf("a github source needs both an owner and a login to " +
 			"require a review request from")

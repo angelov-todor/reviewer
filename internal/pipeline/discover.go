@@ -39,6 +39,7 @@ func (p *Pipeline) discover(ctx context.Context, opts Options) []sourceFound {
 		q := ghpr.Query{
 			Owner:              src.Owner,
 			ReviewRequestedFor: src.Login(p.Cfg.GithubLogin),
+			AllOpen:            src.AllOpen,
 			RepoPrefixes:       src.RepoPrefixes,
 			ExcludeAuthors:     src.ExcludeAuthors,
 			Limit:              src.Limit,

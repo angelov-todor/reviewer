@@ -134,8 +134,24 @@ type Source struct {
 	Space string `yaml:"space"`
 	// Owner is the organisation to search.
 	Owner string `yaml:"owner"`
+	// AllOpen reviews every open pull request in the matching repositories,
+	// rather than only those with a review requested.
+	//
+	// This is what "review the team's pull requests" means, and requiring a
+	// review request instead left the service seeing four of twenty-eight:
+	// most pull requests here have no reviewer set, and several request a
+	// team, which GitHub searches under a different qualifier than a user.
+	//
+	// It was rejected at first on arithmetic that was wrong -- 350 open pull
+	// requests in scope sounded unaffordable, and 312 of them were dependabot,
+	// which the author exclusions already remove.
+	//
+	// Requires repo_prefixes: without one it would walk every repository in
+	// the organisation and comment on work from teams that never asked.
+	AllOpen bool `yaml:"all_open"`
 	// ReviewRequested restricts the search to pull requests with a review
-	// requested from this login, defaulting to github_login.
+	// requested from this login, defaulting to github_login. Ignored when
+	// all_open is set.
 	//
 	// There is deliberately no way to ask for "every open pull request".
 	// Measured on this operator's organisation that is over five hundred, each
@@ -496,6 +512,10 @@ func (s Source) validate(i int, c Config) error {
 	case SourceGitHub:
 		if s.Space != "" {
 			return fmt.Errorf("sources[%d]: \"space\" belongs to a source of type %q", i, SourceChat)
+		}
+		if s.AllOpen && len(s.RepoPrefixes) == 0 {
+			return fmt.Errorf("sources[%d]: all_open needs repo_prefixes, or it would review "+
+				"every repository in the organisation", i)
 		}
 	default:
 		return fmt.Errorf("sources[%d]: unknown type %q (the source types are %q and %q)",

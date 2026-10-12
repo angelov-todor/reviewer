@@ -478,12 +478,27 @@ posted together, and a message to react to. A GitHub source is an addition to
 it, so a GitHub outage or a rate limit costs the service the discovered pull
 requests for one sweep and never the posted ones.
 
-**A source finds pull requests with a review requested from you, and there is
-deliberately no mode that finds everything.** Measured against a real
-organisation, "every open pull request" is over five hundred — each a clone, a
-claude run, and a comment on a colleague's pull request nobody asked for. A
-review request is the same property that makes the chat space work: somebody
-asked.
+**`all_open: true` reviews every open pull request in the matching
+repositories.** That is what "review the team's pull requests" means, and it is
+the mode to use.
+
+Without it a source finds only pull requests with a review requested from one
+login, and that was the default here for a while on arithmetic that was wrong.
+"Every open pull request" measured as over five hundred, which sounded
+unaffordable — but 312 of them were dependabot, which `exclude_bots` and
+`exclude_authors` already remove. The real population was twenty-eight, and
+requiring a review request left the service seeing **four** of them: most pull
+requests had no reviewer set, and several requested a *team*, which GitHub
+searches under a different qualifier than a user. The symptom was a service
+that looked slow and was in fact nearly blind.
+
+`all_open` requires `repo_prefixes`. Without one it would walk every
+repository in the organisation — 321 here — and comment on work from teams
+that never asked, so it is refused rather than defaulted. It reads the
+organisation's repositories through GraphQL rather than the search API, which
+on this organisation is both incomplete (three identical calls returned 6, 8
+and 9 of a reported 9) and stale (it reported three merged pull requests as
+open).
 
 `exclude_authors` goes into the search query itself, which is what keeps the
 result to a single request. Bots dominate a review-requested queue — 314 of 327
