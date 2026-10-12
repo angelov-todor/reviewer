@@ -86,6 +86,17 @@ type Config struct {
 	// travel in a prompt: the compliance books alone are about 700,000 words,
 	// roughly five context windows. The reviewer searches them.
 	DocsRoot string `yaml:"docs_root"`
+	// EnvFile is an optional file of KEY=VALUE lines loaded into the process
+	// environment at startup.
+	//
+	// It exists because `claude setup-token` prints a long-lived token rather
+	// than storing one, so on a service box the token lives in a file that
+	// systemd's EnvironmentFile hands to the daemon. Without this, the same
+	// box works as a service and appears broken by hand: `reviewer doctor`
+	// run by an operator does not see the token, reports that claude has no
+	// credentials, and sends them looking for a fault that is not there.
+	// Loading it in one place makes a manual run and the service identical.
+	EnvFile  string `yaml:"env_file"`
 	StateDir string `yaml:"state_dir"`
 	Paths    Paths  `yaml:"paths"`
 	// Sources are the extra places the service looks for pull requests, beyond
@@ -351,6 +362,10 @@ func (c Config) Validate() error {
 		return errors.New("fetch_limit must be positive")
 	}
 	chats := 0
+	if c.EnvFile != "" && !filepath.IsAbs(c.EnvFile) {
+		return fmt.Errorf("env_file must be an absolute path, got %q: a relative path resolves "+
+			"against whatever directory the service was launched from", c.EnvFile)
+	}
 	for i, src := range c.Sources {
 		if err := src.validate(i, c); err != nil {
 			return err
@@ -519,4 +534,52 @@ func (c Config) hasGitHubSource() bool {
 		}
 	}
 	return false
+}
+
+const (
+	dquote = '"'
+	squote = '\''
+)
+
+// LoadEnvFile reads KEY=VALUE lines from c.EnvFile into the process
+// environment, and reports how many it set.
+//
+// An existing variable is never overwritten: under systemd the same values
+// arrive through EnvironmentFile first, and an operator who exported one
+// deliberately for a single command meant it.
+//
+// Values are not logged, trimmed or unquoted beyond a surrounding pair of
+// quotes. This file holds a credential, and a parser that is clever about it
+// is a parser that can corrupt it.
+func (c Config) LoadEnvFile() (int, error) {
+	if c.EnvFile == "" {
+		return 0, nil
+	}
+	b, err := os.ReadFile(c.EnvFile)
+	if err != nil {
+		return 0, fmt.Errorf("env_file %s: %w", c.EnvFile, err)
+	}
+	n := 0
+	for _, line := range strings.Split(string(b), "\n") {
+		line = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "export "))
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		k, v, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		k = strings.TrimSpace(k)
+		if k == "" || os.Getenv(k) != "" {
+			continue
+		}
+		if len(v) >= 2 && (v[0] == dquote || v[0] == squote) && v[len(v)-1] == v[0] {
+			v = v[1 : len(v)-1]
+		}
+		if err := os.Setenv(k, v); err != nil {
+			return n, err
+		}
+		n++
+	}
+	return n, nil
 }
