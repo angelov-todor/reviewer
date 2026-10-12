@@ -196,6 +196,13 @@ sources: []
 #     exclude_bots: true
 #     # Up to GitHub's maximum of 100, which is also the default.
 #     limit: 50
+#     # Review every open pull request in the matching repositories, not only
+#     # those with a review requested. This is what "review the team's pull
+#     # requests" means: requiring a review request left one real installation
+#     # seeing 4 of its 28 open PRs, because most had no reviewer set and
+#     # several requested a team, which GitHub searches under a different
+#     # qualifier than a user. Requires repo_prefixes.
+#     all_open: true
 #     # On the source's FIRST sweep, review pull requests touched inside this
 #     # window and treat everything older as history. Unset means the strict
 #     # cold start: everything already open is history. Measured on one real

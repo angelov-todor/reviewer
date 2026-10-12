@@ -617,3 +617,50 @@ func TestWithoutAWindowTheColdStartIsStrict(t *testing.T) {
 		t.Errorf("no window means everything open is history: %+v", rep.Decisions)
 	}
 }
+
+// TestExcludeAuthorsIsHonouredInAllOpenMode is the second defect self-review
+// found.
+//
+// The search path excludes those authors inside the query, server-side. The
+// all-open path has no query to put them in, so without an explicit filter
+// exclude_authors was honoured in one mode and silently ignored in the other
+// -- and silently is the problem: the config says what it says.
+func TestExcludeAuthorsIsHonouredInAllOpenMode(t *testing.T) {
+	src := aSource()
+	src.AllOpen = true
+	src.ExcludeAuthors = []string{"app/dependabot", "astraex-pipeline-bot"}
+	src.ExcludeBots = false // so only the author filter can be doing the work
+
+	// The spellings differ between the two worlds: a query exclusion is
+	// "app/dependabot", while the author of a pull request comes back as
+	// "dependabot[bot]". Both must match the same actor.
+	bot := found("aex-balances", 12, testNow)
+	bot.Author = "dependabot[bot]"
+	pipeline := found("aex-venue-service", 29, testNow)
+	pipeline.Author = "astraex-pipeline-bot"
+	human := found("aex-margin-service", 88, testNow)
+	human.Author = "colleague"
+
+	h := newHarness(t, nil)
+	h.p.Chat = nil
+	h.prs.discovered = []ghpr.Found{bot, pipeline, human}
+	h.prs.info["example-org/aex-margin-service#88"] = ghpr.PRInfo{
+		State: "OPEN", Author: "colleague", HeadSHA: "sha1",
+	}
+	h.cfg.Sources = []config.Source{src}
+	h.apply()
+	seedWatched(t, h, src, testNow.Add(-24*time.Hour))
+
+	rep, err := h.p.Sweep(context.Background(), Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range rep.Decisions {
+		if d.Ref.Repo == "aex-balances" || d.Ref.Repo == "aex-venue-service" {
+			t.Errorf("%s was excluded by exclude_authors and must not be a candidate", d.Ref.Key())
+		}
+	}
+	if _, ok := decisionFor(rep, "example-org/aex-margin-service#88"); !ok {
+		t.Error("the human's pull request must still be reviewed")
+	}
+}

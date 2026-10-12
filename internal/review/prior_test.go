@@ -139,8 +139,8 @@ func TestAPullRequestWithNoFeedbackAsksExactlyWhatItAlwaysDid(t *testing.T) {
 		t.Fatal(err)
 	}
 	args := f.Calls[0].Args
-	if got := args[slices.Index(args, "-p")+1]; got != rr.Prompt(ref) {
-		t.Errorf("-p = %q, want the unchanged prompt %q", got, rr.Prompt(ref))
+	if got := args[slices.Index(args, "-p")+1]; got != rr.Prompt(ref, nil) {
+		t.Errorf("-p = %q, want the unchanged prompt %q", got, rr.Prompt(ref, nil))
 	}
 	if got := args[slices.Index(args, "--append-system-prompt")+1]; got != verdictInstruction {
 		t.Errorf("system prompt gained something with no feedback to report: %q", got)

@@ -21,7 +21,7 @@ var ref = prref.PRRef{Owner: "Example-Org", Repo: "aex-balances", Number: 12}
 // comment on.
 func TestPromptNamesThePRAndOmitsCommentInDryRun(t *testing.T) {
 	rr := New(&runner.Fake{}, "claude", nil, true, t.TempDir())
-	got := rr.Prompt(ref)
+	got := rr.Prompt(ref, nil)
 	// A general instruction naming the pull request, not a slash command. That
 	// is what lets the reviewer's own skills be selected for the repository it
 	// is looking at -- a .NET review skill for a C# service -- instead of a
@@ -39,7 +39,7 @@ func TestPromptNamesThePRAndOmitsCommentInDryRun(t *testing.T) {
 
 func TestPromptNamesThePRAndIncludesCommentWhenLive(t *testing.T) {
 	rr := New(&runner.Fake{}, "claude", nil, false, t.TempDir())
-	got := rr.Prompt(ref)
+	got := rr.Prompt(ref, nil)
 	if !strings.HasPrefix(got, "Review pull request "+ref.URL()) {
 		t.Errorf("Prompt() = %q, want it to open by naming the pull request", got)
 	}
@@ -68,8 +68,8 @@ func TestPromptNamesThePRAndIncludesCommentWhenLive(t *testing.T) {
 // print -- has to be identical, because that equivalence is what makes reading
 // a dry-run report a trustworthy preview of what a live run would do.
 func TestDryRunAndLivePromptsDifferOnlyInWhetherTheyPost(t *testing.T) {
-	dry := New(&runner.Fake{}, "claude", nil, true, t.TempDir()).Prompt(ref)
-	live := New(&runner.Fake{}, "claude", nil, false, t.TempDir()).Prompt(ref)
+	dry := New(&runner.Fake{}, "claude", nil, true, t.TempDir()).Prompt(ref, nil)
+	live := New(&runner.Fake{}, "claude", nil, false, t.TempDir()).Prompt(ref, nil)
 
 	if strings.Replace(dry, dryRunPostingClause, livePostingClause, 1) != live {
 		t.Errorf("the prompts differ by more than the posting instruction:\ndry:  %q\nlive: %q",
@@ -99,7 +99,7 @@ func TestRunInvokesClaudeInTheWorktreeWithConfiguredArgs(t *testing.T) {
 	// --append-system-prompt and the verdict instruction. extraArgs stays
 	// last, so operator config can still override anything the service sets.
 	want := []string{
-		"-p", New(&runner.Fake{}, "claude", nil, true, t.TempDir()).Prompt(ref),
+		"-p", New(&runner.Fake{}, "claude", nil, true, t.TempDir()).Prompt(ref, nil),
 		"--append-system-prompt", verdictInstruction,
 		"--permission-mode", "bypassPermissions",
 	}
@@ -121,7 +121,7 @@ func TestRunPassesTheLivePromptInOrder(t *testing.T) {
 		t.Fatalf("Calls = %+v", f.Calls)
 	}
 	want := []string{
-		"-p", rr.Prompt(ref),
+		"-p", rr.Prompt(ref, nil),
 		"--append-system-prompt", verdictInstruction,
 		"--permission-mode", "bypassPermissions",
 	}

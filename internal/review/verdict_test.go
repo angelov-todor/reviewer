@@ -185,7 +185,7 @@ func TestVerdictInstructionStatesTheProtocolAndTheSeverityRule(t *testing.T) {
 // in the -p value and not left to the system prompt alone.
 func TestThePromptCarriesTheVerdictAsk(t *testing.T) {
 	for _, dry := range []bool{true, false} {
-		got := New(&runner.Fake{}, "claude", nil, dry, t.TempDir()).Prompt(ref)
+		got := New(&runner.Fake{}, "claude", nil, dry, t.TempDir()).Prompt(ref, nil)
 		if !strings.Contains(got, VerdictMarker+" approve") ||
 			!strings.Contains(got, VerdictMarker+" findings") {
 			t.Errorf("dryRun=%v: the prompt must ask for both verdict lines, or the reviewer "+
@@ -278,7 +278,7 @@ func TestDryRunReportStatesTheWouldBeVerdict(t *testing.T) {
 // `+ findingFormat` from Prompt left the suite green.
 func TestThePromptCarriesTheSeverityRuleAndTheFormat(t *testing.T) {
 	for _, dry := range []bool{true, false} {
-		got := New(&runner.Fake{}, "claude", nil, dry, t.TempDir()).Prompt(ref)
+		got := New(&runner.Fake{}, "claude", nil, dry, t.TempDir()).Prompt(ref, nil)
 
 		// The format, because the service cannot see a finding and so cannot
 		// tell a nit from a blocker except through the label the reviewer
@@ -316,7 +316,7 @@ func TestThePromptCarriesTheSeverityRuleAndTheFormat(t *testing.T) {
 // .NET-aware review in the fixture; what changed is that the output shape no
 // longer rests on it.
 func TestThePromptStillAsksForApplicableSkills(t *testing.T) {
-	got := New(&runner.Fake{}, "claude", nil, true, t.TempDir()).Prompt(ref)
+	got := New(&runner.Fake{}, "claude", nil, true, t.TempDir()).Prompt(ref, nil)
 	if !strings.Contains(got, "installed review skills") {
 		t.Errorf("the prompt should still invite the repository's own review skills: %q", got)
 	}
