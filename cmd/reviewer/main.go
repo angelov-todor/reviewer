@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-const usageText = `reviewer — review the PRs posted to the team chat space
+const usageText = `reviewer — review the team's pull requests
 
 usage: reviewer <command> [flags]
 
@@ -17,7 +17,7 @@ commands:
   status    what has been reviewed, skipped or deferred
   replay    review one PR again, ignoring the dedupe record
   clear     mark one PR's needs_attention record handled
-  catchup   skip to now: move the chat watermark without reviewing the gap
+  catchup   skip to now: move the chat watermark without reviewing the gap (chat only)
   doctor    check every external dependency
   pause     stop reviewing and posting; sweeps keep queueing
   resume    undo pause

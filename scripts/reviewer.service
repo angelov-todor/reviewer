@@ -6,6 +6,15 @@ Documentation=https://github.com/angelov-todor/reviewer
 After=network-online.target
 Wants=network-online.target
 
+# Give up rather than loop forever. Restart=always is right for the failures
+# this has in practice -- a network blip, a rate limit -- but it is wrong for a
+# config the daemon refuses to load: that exits immediately, every time, and
+# without a limit it fills the journal every 30 seconds until somebody
+# notices. Five failures in ten minutes and the unit enters failed state,
+# where `systemctl status` says so plainly.
+StartLimitIntervalSec=600
+StartLimitBurst=5
+
 [Service]
 Type=simple
 User=reviewer
@@ -15,6 +24,11 @@ Group=reviewer
 # record. Without this the service starts and then cannot authenticate to
 # anything, which reads as a GitHub problem rather than a unit problem.
 Environment=HOME=/var/lib/reviewer
+# claude is installed from apt, which does not auto-update it. This says so
+# explicitly, because ProtectSystem=strict makes its install directory
+# read-only: an updater that tried anyway would fail on every start and say so
+# in the journal, which is noise about a thing nobody asked for.
+Environment=DISABLE_AUTOUPDATER=1
 WorkingDirectory=/var/lib/reviewer
 ExecStart=/usr/local/bin/reviewer watch -config /etc/reviewer/config.yaml
 

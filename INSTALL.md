@@ -17,6 +17,27 @@ script is safe to re-run.
 
 Nothing listens on a port. No inbound access is needed.
 
+## 0. Access
+
+Password authentication is awkward to automate: an ssh password prompt cannot
+be answered by a script, and `sshpass` is not present on every workstation. So
+install a public key once, from the box or over a password login:
+
+```bash
+# on the box, as the user that will be used for setup
+mkdir -p ~/.ssh && chmod 700 ~/.ssh
+echo "<public key>" >> ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+```
+
+Then `ssh -i <private key> <user>@<host>` works unattended, and every command
+below can be run over it.
+
+A key is also better than a password for a second reason: a password pasted
+into a terminal, a chat window or an agent transcript stays in all three. A
+key scoped to this one box can be removed from `authorized_keys` without
+touching anything else.
+
 ## 1. Build and copy the binary
 
 From a checkout on any machine with Go — your laptop is fine:
