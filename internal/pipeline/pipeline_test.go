@@ -264,6 +264,17 @@ type harness struct {
 	reactLog *[]string
 }
 
+// testNow is the pipeline's notion of now in every test, and every fixture
+// time must be relative to it.
+//
+// Named rather than inlined because fixtures built from the wall clock read as
+// activity in the future against a clock pinned in the past: a pull request
+// that is plainly history then looks brand new. That mismatch sat hidden
+// behind a `continue` in the source cold start until the cold start learned to
+// offer work inside a window, and then produced a test failure that looked
+// like a logic bug and was a clock bug.
+var testNow = time.Date(2026, 9, 3, 12, 0, 0, 0, time.UTC)
+
 func newHarness(t *testing.T, msgs []chat.Message) *harness {
 	t.Helper()
 	dir := t.TempDir()
@@ -294,7 +305,7 @@ func newHarness(t *testing.T, msgs []chat.Message) *harness {
 	h.p = &Pipeline{
 		Cfg: cfg, Store: st, Chat: h.ch, PRs: h.prs, WTs: h.wts, Rev: h.rev,
 		Log: slog.New(slog.NewTextHandler(io.Discard, nil)),
-		Now: func() time.Time { return time.Date(2026, 9, 3, 12, 0, 0, 0, time.UTC) },
+		Now: func() time.Time { return testNow },
 	}
 	return h
 }

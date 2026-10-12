@@ -502,6 +502,15 @@ and only what is touched afterwards is offered: a push, a comment, a new review
 request. `review_backlog: true` on the source switches this off, for somebody
 who genuinely wants an existing backlog reviewed once.
 
+`updated_within` softens it: on the first sweep, pull requests touched inside
+that window are reviewed and everything older is history. Unset means the
+strict version, and the strict version is often too strict — measured here,
+three of ten open pull requests had been touched within the hour, and
+excluding active work until somebody happens to push again is not what "do not
+sweep the backlog" means. It governs the first sweep only; after that the
+recorded timestamp decides, so a pull request idle for months that somebody
+comments on next week is still picked up.
+
 This is the rule the chat side has always had — a first run against a populated
 space reviews nothing — applied to sources. A source is identified by its owner
 and login rather than its position in the list, so reordering the entries or

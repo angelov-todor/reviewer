@@ -743,7 +743,7 @@ func (p *Pipeline) Sweep(ctx context.Context, opts Options) (SweepReport, error)
 	// itself carried.
 	p.recordMessages(msgs, opts)
 
-	cands := p.candidates(msgs, p.discover(ctx))
+	cands := p.candidates(msgs, p.discover(ctx, opts))
 	p.progress(Event{Stage: StageCandidates, Total: len(cands)})
 
 	st := newSweepState(p.Cfg.MaxReviewsPerSweep)

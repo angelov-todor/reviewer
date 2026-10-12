@@ -85,6 +85,21 @@ func cmdDoctor(args []string) error {
 	cfg, err := config.Load(*cfgPath)
 	add("config loads", err, *cfgPath)
 	if err == nil {
+		// Loaded here as well as in openApp, and doctor is the call site that
+		// matters most: it does not go through openApp, it is the command an
+		// operator runs by hand, and it is the one that checks whether claude
+		// has credentials. Missing it produced exactly the wrong answer on a
+		// correctly configured box -- a red "claude works" beside a service
+		// that would have worked, which is the failure the env_file loading
+		// was added to prevent in the first place.
+		//
+		// Reported as its own check rather than folded into "config loads":
+		// an unreadable credentials file is a different fault from a
+		// malformed config, and it is the likelier of the two.
+		if cfg.EnvFile != "" {
+			n, eerr := cfg.LoadEnvFile()
+			add("env_file loaded", eerr, fmt.Sprintf("%s (%d variables)", cfg.EnvFile, n))
+		}
 		add("config valid", explainValidate(cfg, *cfgPath), fmt.Sprintf("dry_run=%v allow_owners=%v", cfg.DryRun, cfg.AllowOwners))
 		add("state dir writable", writable(cfg.StateDir), cfg.StateDir)
 		// Only when a space is configured. On a GitHub-only installation

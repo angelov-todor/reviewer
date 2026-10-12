@@ -196,6 +196,13 @@ sources: []
 #     exclude_bots: true
 #     # Up to GitHub's maximum of 100, which is also the default.
 #     limit: 50
+#     # On the source's FIRST sweep, review pull requests touched inside this
+#     # window and treat everything older as history. Unset means the strict
+#     # cold start: everything already open is history. Measured on one real
+#     # organisation, three of ten open PRs had been touched within the hour,
+#     # so the strict default excludes active work until somebody pushes again.
+#     # Governs the first sweep only; after that the recorded timestamp does.
+#     updated_within: 336h
 #     # Review everything the source finds on its first sweep, however old.
 #     # Off by default: the pull requests already open when a source is
 #     # switched on are its history, and the service would post on all of them
