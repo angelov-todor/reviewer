@@ -23,7 +23,7 @@ type sourceFound struct {
 // or a rate limit must not stop the service reviewing what the team posted, and
 // the pull requests a source would have offered are offered again on the next
 // sweep, five minutes later, having lost nothing but the delay.
-func (p *Pipeline) discover(ctx context.Context) []sourceFound {
+func (p *Pipeline) discover(ctx context.Context, opts Options) []sourceFound {
 	if len(p.Cfg.Sources) == 0 {
 		return nil
 	}
@@ -62,18 +62,76 @@ func (p *Pipeline) discover(ctx context.Context) []sourceFound {
 			continue
 		}
 		if !watched && !src.ReviewBacklog {
+			// print-only must not consume the cold start. It is documented as
+			// writing no state, and this is the most consequential piece of
+			// state there is: recording it turns every pull request currently
+			// open into history, permanently, for an operator who was only
+			// looking. It happened on the first run against a real box, and
+			// the only sign was a timestamp in a log line.
+			//
+			// So it reports what the first real sweep will exclude, and
+			// records nothing. That is also the more useful answer: the
+			// backlog is exactly what somebody running print-only before
+			// starting the service wants to see.
+			// The cold start's cutoff. Without updated_within it is this
+			// moment, so everything already open is history; with it the
+			// window reaches back, and work touched inside it is reviewed on
+			// the first sweep.
+			cold := p.now()
+			if w := src.UpdatedWithin.D(); w > 0 {
+				cold = cold.Add(-w)
+			}
+			if opts.PrintOnly {
+				page, perr := p.PRs.Discover(ctx, q)
+				if perr != nil {
+					p.Log.Warn("a source could not be read", "owner", src.Owner, "err", perr)
+					continue
+				}
+				// print-only must not consume the cold start. It is documented
+				// as writing no state, and this is the most consequential
+				// piece of state there is: recording it turns every pull
+				// request currently open into history, permanently, for an
+				// operator who was only looking. It happened on the first run
+				// against a real box, and the only sign was a timestamp in a
+				// log line.
+				all := p.keepable(src, page.Found, time.Time{})
+				due := p.keepable(src, page.Found, cold)
+				p.Log.Info("new source, nothing recorded: the first real sweep would review "+
+					"what has been touched inside the window and treat the rest as history",
+					"owner", src.Owner, "would_review", len(due),
+					"would_exclude", len(all)-len(due),
+					"window", src.UpdatedWithin.D().String())
+				dueKey := map[string]bool{}
+				for _, f := range due {
+					dueKey[f.ref.Key()] = true
+					p.Log.Info("  would review", "pr", f.ref.URL(),
+						"updated", f.updatedAt.Format(time.RFC3339))
+				}
+				for _, f := range all {
+					if !dueKey[f.ref.Key()] {
+						p.Log.Info("  would be excluded as history", "pr", f.ref.URL(),
+							"updated", f.updatedAt.Format(time.RFC3339))
+					}
+				}
+				continue
+			}
 			// Recorded before anything is offered, so a crash between here and
 			// the next sweep cannot turn the cold start into a backlog sweep.
-			now := p.now()
-			if werr := p.Store.SetSourceSince(id, now); werr != nil {
+			if werr := p.Store.SetSourceSince(id, cold); werr != nil {
 				p.Log.Error("could not record when this source was first watched; skipping it "+
 					"rather than risking its whole backlog", "owner", src.Owner, "err", werr)
 				continue
 			}
-			p.Log.Info("new source: the pull requests already open are its history and will "+
-				"not be reviewed; anything touched from now on will be",
-				"owner", src.Owner, "since", now.Format(time.RFC3339))
-			continue
+			p.Log.Info("new source: reviewing what has been touched inside the window and "+
+				"treating everything older as history",
+				"owner", src.Owner, "since", cold.Format(time.RFC3339),
+				"window", src.UpdatedWithin.D().String())
+			// Not `continue`: with a window configured there may be pull
+			// requests inside it to review on this very sweep, which is the
+			// whole point of having one. Without a window `since` is now and
+			// the filter below excludes everything anyway.
+			since = cold
+			watched = true
 		}
 		if !watched {
 			// review_backlog: the operator asked for the history on purpose.
@@ -114,7 +172,26 @@ func (p *Pipeline) discover(ctx context.Context) []sourceFound {
 		}
 
 		kept := 0
-		for _, f := range page.Found {
+		for _, f := range p.keepable(src, page.Found, since) {
+			out = append(out, f)
+			kept++
+		}
+		p.Log.Info("source offered pull requests", "owner", src.Owner,
+			"scanned", page.Scanned, "matched", len(page.Found), "kept", kept)
+	}
+	return out
+}
+
+// keepable applies the filters that do not depend on the store: the bot
+// exclusion, the owner allowlist, and the activity cutoff.
+//
+// Shared with the print-only report of a new source, which has to apply the
+// same rules to say truthfully what the first real sweep would exclude. A
+// zero since means no cutoff.
+func (p *Pipeline) keepable(src config.Source, found []ghpr.Found, since time.Time) []sourceFound {
+	var out []sourceFound
+	for _, f := range found {
+		{
 			if src.ExcludeBots && f.IsBot {
 				continue
 			}
@@ -136,10 +213,7 @@ func (p *Pipeline) discover(ctx context.Context) []sourceFound {
 				continue
 			}
 			out = append(out, sourceFound{ref: f.Ref, updatedAt: f.UpdatedAt})
-			kept++
 		}
-		p.Log.Info("source offered pull requests", "owner", src.Owner,
-			"scanned", page.Scanned, "matched", len(page.Found), "kept", kept)
 	}
 	return out
 }

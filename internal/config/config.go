@@ -157,6 +157,21 @@ type Source struct {
 	ExcludeBots bool `yaml:"exclude_bots"`
 	// Limit caps the page, up to GitHub's hundred.
 	Limit int `yaml:"limit"`
+	// UpdatedWithin softens the cold start: on a source's first sweep, pull
+	// requests touched within this window are offered rather than treated as
+	// history.
+	//
+	// Zero means the strict cold start -- everything already open is history.
+	// That is the safe default and it is often too strict: measured on this
+	// organisation, three of the ten open pull requests had been touched
+	// within the hour, and excluding active work until somebody happens to
+	// push again is not what an operator means by "do not sweep the backlog".
+	//
+	// It governs the first sweep only. After that the recorded timestamp
+	// decides, so a pull request idle for months that somebody comments on
+	// next week is still picked up -- it became active while the service was
+	// watching.
+	UpdatedWithin Duration `yaml:"updated_within"`
 	// ReviewBacklog switches off the cold start, so the first sweep offers
 	// every pull request the source finds however old it is.
 	//

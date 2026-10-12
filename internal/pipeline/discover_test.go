@@ -45,7 +45,7 @@ func sourceHarness(t *testing.T, msgs []chat.Message, offered ...ghpr.Found) *ha
 	// about what it offers rather than about the cold start. The cold start
 	// has its own tests below; without this every one of these would assert
 	// against a first sweep, which deliberately offers nothing.
-	seedWatched(t, h, aSource(), time.Now().Add(-24*time.Hour))
+	seedWatched(t, h, aSource(), testNow.Add(-24*time.Hour))
 	return h
 }
 
@@ -62,7 +62,7 @@ func seedWatched(t *testing.T, h *harness, src config.Source, since time.Time) {
 // review requested from the operator gets reviewed even though nobody posted
 // it in chat.
 func TestADiscoveredPullRequestIsReviewed(t *testing.T) {
-	h := sourceHarness(t, nil, found("aex-balances", 12, time.Now()))
+	h := sourceHarness(t, nil, found("aex-balances", 12, testNow))
 	h.prs.info[verdictKey] = ghpr.PRInfo{State: "OPEN", Author: "colleague", HeadSHA: "sha1"}
 
 	rep, err := h.p.Sweep(context.Background(), Options{})
@@ -90,7 +90,7 @@ func TestADiscoveredPullRequestIsReviewed(t *testing.T) {
 func TestBothChannelsOfferingOnePullRequestReviewsItOnce(t *testing.T) {
 	h := sourceHarness(t,
 		[]chat.Message{msg("spaces/A/messages/m1", prURL("aex-balances", 12))},
-		found("aex-balances", 12, time.Now()))
+		found("aex-balances", 12, testNow))
 	h.prs.info[verdictKey] = ghpr.PRInfo{State: "OPEN", Author: "colleague", HeadSHA: "sha1"}
 
 	rep, err := h.p.Sweep(context.Background(), Options{})
@@ -128,13 +128,13 @@ func TestBothChannelsOfferingOnePullRequestReviewsItOnce(t *testing.T) {
 // head SHA, and it is the same gate a chat re-post meets: one review per
 // commit, whatever found it.
 func TestADiscoveredPullRequestIsNotReviewedTwiceForTheSameCommit(t *testing.T) {
-	h := sourceHarness(t, nil, found("aex-balances", 12, time.Now()))
+	h := sourceHarness(t, nil, found("aex-balances", 12, testNow))
 	h.prs.info[verdictKey] = ghpr.PRInfo{State: "OPEN", Author: "colleague", HeadSHA: "sha1"}
 	// Already reviewed at that very commit, five minutes ago.
 	if err := h.st.PutReview(store.Review{
 		Key: verdictKey, Outcome: store.OutcomeReviewed,
 		HeadSHA: "sha1", ReviewedSHAs: []string{"sha1"},
-		DecidedAt: time.Now().Add(-5 * time.Minute),
+		DecidedAt: testNow.Add(-5 * time.Minute),
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -155,12 +155,12 @@ func TestADiscoveredPullRequestIsNotReviewedTwiceForTheSameCommit(t *testing.T) 
 // And a follow-up commit is exactly what does justify another review -- the
 // rule's other direction, which a source must honour as a chat re-post does.
 func TestADiscoveredPullRequestIsReviewedAgainAfterAFollowUpCommit(t *testing.T) {
-	h := sourceHarness(t, nil, found("aex-balances", 12, time.Now()))
+	h := sourceHarness(t, nil, found("aex-balances", 12, testNow))
 	h.prs.info[verdictKey] = ghpr.PRInfo{State: "OPEN", Author: "colleague", HeadSHA: "sha2"}
 	if err := h.st.PutReview(store.Review{
 		Key: verdictKey, Outcome: store.OutcomeReviewed,
 		HeadSHA: "sha1", ReviewedSHAs: []string{"sha1"},
-		DecidedAt: time.Now().Add(-5 * time.Minute),
+		DecidedAt: testNow.Add(-5 * time.Minute),
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -179,7 +179,7 @@ func TestADiscoveredPullRequestIsReviewedAgainAfterAFollowUpCommit(t *testing.T)
 // per pull request per sweep for no new information -- the service shares that
 // rate limit with the reviews themselves.
 func TestAQuietDiscoveredPullRequestCostsNoGitHubCall(t *testing.T) {
-	reviewedAt := time.Now()
+	reviewedAt := testNow
 	h := sourceHarness(t, nil, found("aex-balances", 12, reviewedAt.Add(-time.Hour)))
 	h.prs.info[verdictKey] = ghpr.PRInfo{State: "OPEN", Author: "colleague", HeadSHA: "sha1"}
 	if err := h.st.PutReview(store.Review{
@@ -221,7 +221,7 @@ func TestASourceFailureDoesNotStopTheSweep(t *testing.T) {
 // were dependabot. A bot that nobody has added to the query's exclusions must
 // still not reach a review.
 func TestBotsAreNotReviewed(t *testing.T) {
-	bot := found("aex-balances", 12, time.Now())
+	bot := found("aex-balances", 12, testNow)
 	bot.IsBot = true
 	bot.Author = "dependabot[bot]"
 	h := sourceHarness(t, nil, bot)
@@ -244,7 +244,7 @@ func TestBotsAreNotReviewed(t *testing.T) {
 // discovery so a misconfigured source reads as an empty result rather than as
 // a sweep full of refusals.
 func TestADiscoveredPullRequestOutsideTheAllowlistIsDropped(t *testing.T) {
-	outside := ghpr.Found{Ref: prref.New("Someone-Else", "aex-x", 1), UpdatedAt: time.Now()}
+	outside := ghpr.Found{Ref: prref.New("Someone-Else", "aex-x", 1), UpdatedAt: testNow}
 	h := sourceHarness(t, nil, outside)
 
 	rep, err := h.p.Sweep(context.Background(), Options{})
@@ -311,7 +311,7 @@ func TestAChatSourceIsNotSearched(t *testing.T) {
 		aSource(),
 	}
 	h.apply()
-	seedWatched(t, h, aSource(), time.Now().Add(-24*time.Hour))
+	seedWatched(t, h, aSource(), testNow.Add(-24*time.Hour))
 
 	if _, err := h.p.Sweep(context.Background(), Options{}); err != nil {
 		t.Fatal(err)
@@ -340,8 +340,8 @@ func TestANewSourceReviewsNoneOfItsHistory(t *testing.T) {
 	// Two months old and yesterday: both are history, because history is what
 	// was already open, not what is old.
 	h.prs.discovered = []ghpr.Found{
-		found("aex-balances", 12, time.Now().Add(-60*24*time.Hour)),
-		found("aex-venue-service", 29, time.Now().Add(-24*time.Hour)),
+		found("aex-balances", 12, testNow.Add(-60*24*time.Hour)),
+		found("aex-venue-service", 29, testNow.Add(-24*time.Hour)),
 	}
 	h.cfg.Sources = []config.Source{aSource()}
 	h.apply()
@@ -370,7 +370,7 @@ func TestANewSourceReviewsNoneOfItsHistory(t *testing.T) {
 func TestASourceReviewsWhatHappensAfterItStartsWatching(t *testing.T) {
 	h := newHarness(t, nil)
 	h.seedWatermark(t)
-	started := time.Now().Add(-time.Hour)
+	started := testNow.Add(-time.Hour)
 	h.cfg.Sources = []config.Source{aSource()}
 	h.apply()
 	seedWatched(t, h, aSource(), started)
@@ -404,7 +404,7 @@ func TestReviewBacklogOffersTheHistoryOnPurpose(t *testing.T) {
 	src.ReviewBacklog = true
 	h.cfg.Sources = []config.Source{src}
 	h.apply()
-	h.prs.discovered = []ghpr.Found{found("aex-balances", 12, time.Now().Add(-60*24*time.Hour))}
+	h.prs.discovered = []ghpr.Found{found("aex-balances", 12, testNow.Add(-60*24*time.Hour))}
 	h.prs.info[verdictKey] = ghpr.PRInfo{State: "OPEN", Author: "colleague", HeadSHA: "sha1"}
 
 	rep, err := h.p.Sweep(context.Background(), Options{})
@@ -454,11 +454,11 @@ func TestAGitHubOnlySweepNeedsNoChat(t *testing.T) {
 	h := newHarness(t, nil)
 	// Deliberately nil, exactly as openApp leaves it when no space is set.
 	h.p.Chat = nil
-	h.prs.discovered = []ghpr.Found{found("aex-balances", 12, time.Now())}
+	h.prs.discovered = []ghpr.Found{found("aex-balances", 12, testNow)}
 	h.prs.info[verdictKey] = ghpr.PRInfo{State: "OPEN", Author: "colleague", HeadSHA: "sha1"}
 	h.cfg.Sources = []config.Source{aSource()}
 	h.apply()
-	seedWatched(t, h, aSource(), time.Now().Add(-24*time.Hour))
+	seedWatched(t, h, aSource(), testNow.Add(-24*time.Hour))
 
 	rep, err := h.p.Sweep(context.Background(), Options{})
 	if err != nil {
@@ -492,5 +492,128 @@ func TestASweepWithNothingConfiguredIsQuiet(t *testing.T) {
 	}
 	if len(rep.Decisions) != 0 || rep.Reviewed != 0 {
 		t.Errorf("nothing should have happened: %+v", rep)
+	}
+}
+
+// TestPrintOnlyDoesNotConsumeTheColdStart is a bug found on the first run
+// against a real service box.
+//
+// print-only is documented as writing no state, and the source cold start is
+// the most consequential state there is: recording it turns every pull request
+// currently open into history, permanently. A `scan -print-only` run to see
+// what the service would do silently did exactly that, and the only sign was
+// a timestamp in a log line. The next real sweep then found nothing and looked
+// correct.
+func TestPrintOnlyDoesNotConsumeTheColdStart(t *testing.T) {
+	h := newHarness(t, nil)
+	h.p.Chat = nil
+	h.prs.discovered = []ghpr.Found{
+		found("aex-balances", 12, testNow),
+		found("aex-venue-service", 29, testNow),
+	}
+	h.cfg.Sources = []config.Source{aSource()}
+	h.apply()
+
+	if _, err := h.p.Sweep(context.Background(), Options{PrintOnly: true}); err != nil {
+		t.Fatal(err)
+	}
+	if _, watched, err := h.st.SourceSince(aSource().ID(h.cfg.GithubLogin)); err != nil {
+		t.Fatal(err)
+	} else if watched {
+		t.Fatal("print-only recorded the cold start; the backlog is now excluded forever " +
+			"because somebody looked")
+	}
+
+	// And because it recorded nothing, the first real sweep still performs the
+	// cold start -- which is the whole point.
+	if _, err := h.p.Sweep(context.Background(), Options{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, watched, _ := h.st.SourceSince(aSource().ID(h.cfg.GithubLogin)); !watched {
+		t.Error("the first real sweep must perform the cold start print-only left alone")
+	}
+}
+
+// A print-only run against a new source reports nothing to review, because
+// that is what the first real sweep will do. The backlog is reported in the
+// log rather than offered as candidates: calling them "would review" would be
+// a lie in the other direction.
+func TestPrintOnlyOnANewSourceOffersNothing(t *testing.T) {
+	h := newHarness(t, nil)
+	h.p.Chat = nil
+	h.prs.discovered = []ghpr.Found{found("aex-balances", 12, testNow)}
+	h.cfg.Sources = []config.Source{aSource()}
+	h.apply()
+
+	rep, err := h.p.Sweep(context.Background(), Options{PrintOnly: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Decisions) != 0 {
+		t.Errorf("a new source's backlog must not be reported as reviewable: %+v", rep.Decisions)
+	}
+}
+
+// TestTheColdStartWindowReviewsRecentWork is the setting the strict cold start
+// needed.
+//
+// "Do not sweep the backlog" is not the same as "ignore everything open".
+// Measured on the real organisation, three of the ten open pull requests had
+// been touched within the hour, and excluding active work until somebody
+// happens to push again is not what an operator means.
+func TestTheColdStartWindowReviewsRecentWork(t *testing.T) {
+	src := aSource()
+	src.UpdatedWithin = config.Duration(14 * 24 * time.Hour)
+
+	h := newHarness(t, nil)
+	h.p.Chat = nil
+	h.prs.discovered = []ghpr.Found{
+		// Inside the window: active work, reviewed on the first sweep.
+		found("aex-balances", 12, testNow.Add(-2*time.Hour)),
+		// Outside it: history, left alone.
+		found("aex-venue-service", 29, testNow.Add(-60*24*time.Hour)),
+	}
+	h.prs.info[verdictKey] = ghpr.PRInfo{State: "OPEN", Author: "colleague", HeadSHA: "sha1"}
+	h.cfg.Sources = []config.Source{src}
+	h.apply()
+
+	rep, err := h.p.Sweep(context.Background(), Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d, ok := decisionFor(rep, verdictKey); !ok || d.Action != ActionReview {
+		t.Errorf("work touched inside the window must be reviewed on the first sweep: %+v", d)
+	}
+	if _, ok := decisionFor(rep, "example-org/aex-venue-service#29"); ok {
+		t.Error("a pull request older than the window is still history")
+	}
+	// The recorded timestamp is the window's start, not the moment of the
+	// sweep: otherwise the second sweep would re-offer everything inside the
+	// window that the first one already reviewed.
+	since, watched, err := h.st.SourceSince(src.ID(h.cfg.GithubLogin))
+	if err != nil || !watched {
+		t.Fatalf("the cold start must be recorded: watched=%v err=%v", watched, err)
+	}
+	if !since.Before(testNow) {
+		t.Errorf("since = %v, want the window's start, before now", since)
+	}
+}
+
+// With no window configured the strict behaviour stands: everything already
+// open is history. That is the safe default and the one a config inherits by
+// saying nothing.
+func TestWithoutAWindowTheColdStartIsStrict(t *testing.T) {
+	h := newHarness(t, nil)
+	h.p.Chat = nil
+	h.prs.discovered = []ghpr.Found{found("aex-balances", 12, testNow.Add(-time.Minute))}
+	h.cfg.Sources = []config.Source{aSource()}
+	h.apply()
+
+	rep, err := h.p.Sweep(context.Background(), Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Decisions) != 0 {
+		t.Errorf("no window means everything open is history: %+v", rep.Decisions)
 	}
 }
