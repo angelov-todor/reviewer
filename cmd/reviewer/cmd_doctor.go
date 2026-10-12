@@ -411,6 +411,13 @@ func checkSource(ctx context.Context, prs *ghpr.Client, src config.Source, login
 		RepoPrefixes:       src.RepoPrefixes,
 		ExcludeAuthors:     src.ExcludeAuthors,
 		Limit:              src.Limit,
+		// Carried, or the check answers a different question from the one
+		// that matters. Without it doctor probed the search API while the
+		// service walked the repositories: on the box it reported "12
+		// scanned, 7 matched" beside a service that was seeing 286 and 15. A
+		// preflight that exercises a path the service does not use is the
+		// class of bug this file has already been fixed for twice.
+		AllOpen: src.AllOpen,
 	})
 	if err != nil {
 		return "", err
