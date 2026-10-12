@@ -212,3 +212,45 @@ func TestClaudeAnswersToleratesAChattyReply(t *testing.T) {
 		t.Errorf("the detail should say it answered oddly: %q", detail)
 	}
 }
+
+// TestCheckSourceProbesThePathTheServiceUses is the third instance of one
+// mistake in this file: a check that answers a different question from the one
+// that matters.
+//
+// `gh auth status` reported on accounts the service does not use. `claude
+// --version` reported that a binary exists rather than that it can review.
+// And this one probed the search API while the service walked the
+// repositories: on the box it printed "12 scanned, 7 matched" beside a service
+// that was seeing 286 and 15.
+func TestCheckSourceProbesThePathTheServiceUses(t *testing.T) {
+	const allOpen = `{"data":{"organization":{"repositories":{
+	 "pageInfo":{"hasNextPage":false,"endCursor":""},
+	 "nodes":[{"name":"aex-a","isArchived":false,"pullRequests":{"nodes":[
+	   {"number":1,"isDraft":false,"updatedAt":"2026-10-12T09:00:00Z",
+	    "author":{"__typename":"User","login":"colleague"}}]}}]}}}}`
+
+	f := &runner.Fake{Replies: []runner.Reply{
+		{Match: "graphql", Result: runner.Result{Stdout: []byte(allOpen)}},
+		// Configured so a wrong route is visible as a wrong answer rather
+		// than as an error: if the check still reaches for search, it gets a
+		// usable reply and reports the wrong numbers.
+		{Match: "search/issues", Result: runner.Result{
+			Stdout: []byte(`{"total_count":0,"items":[]}`),
+		}},
+	}}
+	src := config.Source{
+		Type: "github", Owner: "Example-Org",
+		RepoPrefixes: []string{"aex-"}, AllOpen: true,
+	}
+	detail, err := checkSource(context.Background(), ghpr.New(f, "gh"), src, "angelov-todor")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(f.Calls[0].String(), "search/issues") {
+		t.Errorf("an all_open source must be probed the way the service reads it, not via "+
+			"search: %q", f.Calls[0].String())
+	}
+	if !strings.Contains(detail, "1 scanned") {
+		t.Errorf("the detail must come from the all-open walk: %q", detail)
+	}
+}
