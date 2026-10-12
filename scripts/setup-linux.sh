@@ -38,6 +38,17 @@ if ! have apt-get; then
 	echo "this script is for Debian or Ubuntu; on anything else follow INSTALL.md by hand" >&2
 	exit 1
 fi
+# Reported rather than enforced: the apt repositories below serve Debian 10+
+# and Ubuntu 20.04+, and on anything older the failure arrives as an opaque
+# package-resolution error several steps from its cause.
+if [ -r /etc/os-release ]; then
+	. /etc/os-release
+	echo "detected: ${PRETTY_NAME:-unknown}"
+	case "${ID:-}" in
+	debian | ubuntu) ;;
+	*) echo "warning: ${ID:-this distribution} is not Debian or Ubuntu; the apt repositories " 		"added below may not serve it" >&2 ;;
+	esac
+fi
 
 say "base packages"
 apt-get update -qq
@@ -137,6 +148,26 @@ if [ -f "$SRC" ]; then
 	echo "installed $UNIT"
 else
 	echo "reviewer.service not found next to this script; copy it to $UNIT by hand" >&2
+fi
+
+say "verifying what was installed"
+# Checked rather than assumed: an apt install that resolved but left a broken
+# binary is the kind of thing that otherwise surfaces as a crash loop on the
+# first sweep.
+ok=1
+for tool in git gh claude; do
+	if have "$tool"; then
+		printf '  %-7s %s
+' "$tool" "$("$tool" --version 2>&1 | head -1)"
+	else
+		printf '  %-7s MISSING
+' "$tool"
+		ok=0
+	fi
+done
+if [ "$ok" -ne 1 ]; then
+	echo "at least one tool is missing; fix that before going further" >&2
+	exit 1
 fi
 
 say "what is left, and it needs a human"
