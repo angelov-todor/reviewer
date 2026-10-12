@@ -178,6 +178,9 @@ deny_repos: []
 # one page — bots dominate a review-requested queue, 314 of 327 on the
 # organisation this was measured against. exclude_bots is the second net, for
 # the bot nobody has added to that list yet.
+# A GitHub source alone is a complete configuration: no chat space, no Python,
+# no browser login. That is what a headless service box runs. What is refused
+# is a config that watches nothing at all.
 # Default: [] (the top-level `space` above, and nothing else)
 sources: []
 # sources:

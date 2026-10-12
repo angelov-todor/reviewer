@@ -1,0 +1,54 @@
+[Unit]
+Description=Automated pull request reviewer
+Documentation=https://github.com/angelov-todor/reviewer
+# Needs the network for every single thing it does, and nothing of its own to
+# wait for beyond that.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=reviewer
+Group=reviewer
+# HOME explicitly, because both gh and claude keep their credentials under it
+# (~/.config/gh and ~/.claude) and systemd does not set it from the user
+# record. Without this the service starts and then cannot authenticate to
+# anything, which reads as a GitHub problem rather than a unit problem.
+Environment=HOME=/var/lib/reviewer
+WorkingDirectory=/var/lib/reviewer
+ExecStart=/usr/local/bin/reviewer watch -config /etc/reviewer/config.yaml
+
+# Restart rather than give up: every failure this has in practice is a network
+# or rate-limit failure that fixes itself. 30s so a crash loop does not spin.
+Restart=always
+RestartSec=30
+
+# The reviewer runs `claude --permission-mode bypassPermissions`, which means
+# the review subprocess can run arbitrary commands as this user. That is what
+# makes a headless review possible at all, and it is also why the rest of this
+# block exists: the blast radius is one unprivileged user and one directory.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+# ProtectSystem=strict makes everything read-only except this.
+ReadWritePaths=/var/lib/reviewer
+
+# A review is a claude session plus a clone; a handful at once is the point.
+# Generous rather than tight, because the failure mode of a low limit is a
+# review killed part way through, which is the one outcome worth avoiding.
+TasksMax=4096
+LimitNOFILE=16384
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=reviewer
+
+[Install]
+WantedBy=multi-user.target

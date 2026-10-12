@@ -714,9 +714,51 @@ func (p *Pipeline) paused() bool {
 func (p *Pipeline) Sweep(ctx context.Context, opts Options) (SweepReport, error) {
 	rep := SweepReport{Paused: p.paused()}
 
+	// A GitHub-only installation has no space, no watermark and no cold start
+	// to perform: discovery has its own, recorded per source. Everything from
+	// here to the recoverInFlight call below is about reading a chat space,
+	// and it is skipped wholesale rather than guarded line by line -- a nil
+	// Chat is a configuration, not a failure.
+	//
+	// Keyed on the client it was handed, not on the config. The two agree in
+	// the binary, where openApp builds a client only when a space is set, and
+	// they do not agree in a test that injects a fake: gating on the config
+	// skipped the chat half for every one of those, which is how this was
+	// found.
+	var msgs []chat.Message
+	if p.Chat != nil {
+		fetched, done, err := p.sweepChat(ctx, &rep, opts)
+		if err != nil || done {
+			return rep, err
+		}
+		msgs = fetched
+	}
+
+	if err := p.recoverInFlight(&rep, opts); err != nil {
+		return rep, err
+	}
+
+	// Recorded before the candidate list is built, because the candidate list
+	// de-duplicates refs across messages and this has to be what each message
+	// itself carried.
+	p.recordMessages(msgs, opts)
+
+	cands := p.candidates(msgs, p.discover(ctx))
+	p.progress(Event{Stage: StageCandidates, Total: len(cands)})
+
+	st := newSweepState(p.Cfg.MaxReviewsPerSweep)
+	return p.sweepCandidates(ctx, rep, cands, msgs, st, opts)
+}
+
+// sweepChat reads the configured chat space and reports the messages to
+// consider. done is true when the sweep is over before it starts -- the cold
+// start, which reviews nothing by design.
+func (p *Pipeline) sweepChat(ctx context.Context, rep *SweepReport, opts Options) (
+	[]chat.Message, bool, error) {
+
 	wm, hasWM, err := p.Store.Watermark()
 	if err != nil {
-		return rep, err
+		return nil, true, err
 	}
 
 	since, limit := wm.MessageName, p.Cfg.FetchLimit
@@ -730,7 +772,7 @@ func (p *Pipeline) Sweep(ctx context.Context, opts Options) (SweepReport, error)
 	msgs, foundSince, err := p.Chat.Fetch(fctx, since, limit)
 	cancelFetch()
 	if err != nil {
-		return rep, err
+		return nil, true, err
 	}
 	rep.MessagesScanned = len(msgs)
 
@@ -749,11 +791,11 @@ func (p *Pipeline) Sweep(ctx context.Context, opts Options) (SweepReport, error)
 		p.progress(Event{Stage: StageMessagesFetched, Detail: messagesFetchedDetail(len(msgs), false)})
 		if len(msgs) > 0 && !opts.PrintOnly {
 			if err := p.setWatermark(msgs[0]); err != nil {
-				return rep, err
+				return nil, true, err
 			}
 		}
 		p.progress(Event{Stage: StageSweepFinished, Detail: "cold start: nothing reviewed"})
-		return rep, nil
+		return nil, true, nil
 	}
 
 	// The watermark fell out of the window: chat.py returned everything it had,
@@ -774,20 +816,17 @@ func (p *Pipeline) Sweep(ctx context.Context, opts Options) (SweepReport, error)
 			"watermark", since, "oldest_fetched", oldest, "fetch_limit", limit)
 	}
 	p.progress(Event{Stage: StageMessagesFetched, Detail: messagesFetchedDetail(len(msgs), rep.WatermarkGap)})
+	return msgs, false, nil
+}
 
-	if err := p.recoverInFlight(&rep, opts); err != nil {
-		return rep, err
-	}
-
-	// Recorded before the candidate list is built, because the candidate list
-	// de-duplicates refs across messages and this has to be what each message
-	// itself carried.
-	p.recordMessages(msgs, opts)
-
-	cands := p.candidates(msgs, p.discover(ctx))
-	p.progress(Event{Stage: StageCandidates, Total: len(cands)})
-
-	st := newSweepState(p.Cfg.MaxReviewsPerSweep)
+// sweepCandidates runs the decision table over every candidate and assembles
+// the report. Split from Sweep only so the chat-reading half can be skipped
+// without the rest being indented inside a conditional.
+// msgs is carried only for the watermark advance at the end: it is the batch
+// whose newest message the watermark moves to, and a GitHub-only sweep has
+// none, which the len(msgs) == 0 case already treats as nothing to advance.
+func (p *Pipeline) sweepCandidates(ctx context.Context, rep SweepReport, cands []candidate,
+	msgs []chat.Message, st *sweepState, opts Options) (SweepReport, error) {
 
 	// Results are collected by index and appended in candidate order after
 	// every worker has finished, rather than appended as they complete. Two

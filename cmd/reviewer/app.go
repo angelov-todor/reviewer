@@ -58,13 +58,26 @@ func openApp(configPath string, live bool, withReview bool) (*app, error) {
 	log := newLogger()
 	r := runner.OS{}
 
-	cc := chat.New(r, cfg.Paths.Python, cfg.Paths.ChatScript, cfg.Space)
+	// Left nil when no space is configured. The pipeline treats a nil Chat as
+	// a GitHub-only installation rather than an error, and building a client
+	// around an empty space would turn that configuration into a runtime
+	// failure on the first sweep.
+	var cc *chat.Client
+	if cfg.ChatConfigured() {
+		cc = chat.New(r, cfg.Paths.Python, cfg.Paths.ChatScript, cfg.Space)
+	}
 	p := &pipeline.Pipeline{
 		Cfg:   cfg,
 		Store: st,
-		Chat:  cc,
 		PRs:   ghpr.New(r, cfg.Paths.GH),
 		Log:   log,
+	}
+	// Assigned inside the guard rather than unconditionally: a typed nil in an
+	// interface field is not nil, so `Chat: cc` with cc nil would give the
+	// pipeline a non-nil ChatSource holding nothing and panic on the first
+	// fetch -- the exact trap this change exists to avoid.
+	if cc != nil {
+		p.Chat = cc
 	}
 	if withReview {
 		p.WTs = worktree.New(r, cfg.Paths.Git, cfg.ReposDir(), cfg.WorkDir())
@@ -80,7 +93,7 @@ func openApp(configPath string, live bool, withReview bool) (*app, error) {
 	// pipeline refuses to react in a dry run on its own account too; two
 	// independent guards, because dry_run is the switch the operator trusts
 	// with "this cannot touch anybody else's chat or pull request".
-	if withReview && !cfg.DryRun {
+	if withReview && !cfg.DryRun && cc != nil {
 		p.React = cc
 	}
 

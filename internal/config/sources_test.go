@@ -54,27 +54,66 @@ sources:
 	}
 }
 
-// TestTheChatSpaceCannotBeTurnedOffBySilence is the property that kept chat
-// out of the list in the first place, and it survives chat being in the list.
+// TestAGitHubOnlyConfigIsComplete reverses an invariant this file asserted a
+// week ago, deliberately.
 //
-// Deleting the chat source does not produce the service that quietly reviews
-// only what GitHub offers. It produces an error, because a config that no
-// longer watches the team's space is a mistake nobody would see in a log.
-func TestTheChatSpaceCannotBeTurnedOffBySilence(t *testing.T) {
+// Then, a config with no chat space was refused: chat was the only way a pull
+// request could be found, so a config without one was a service that would
+// never do anything, and silence is the worst way to learn that. A GitHub
+// source is now equally a complete configuration -- and on a Linux service
+// box it is the only workable one, because chat needs a Python dependency and
+// a browser-based login a headless machine cannot perform.
+func TestAGitHubOnlyConfigIsComplete(t *testing.T) {
 	c, err := loadYAML(t, `
 sources:
   - type: github
     owner: AstraBit-CPT
+    repo_prefixes: [aex-]
 `)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = usable(c).Validate()
-	if err == nil {
-		t.Fatal("a config with no chat space at all must be refused")
+	u := usable(c)
+	// Deliberately not set: there is no script to point at.
+	u.Paths.ChatScript = ""
+	if err := u.Validate(); err != nil {
+		t.Errorf("a GitHub source alone is a complete configuration: %v", err)
 	}
-	if !strings.Contains(err.Error(), "chat") {
+	if u.ChatConfigured() {
+		t.Error("ChatConfigured must be false, or the pipeline will try to read a space")
+	}
+}
+
+// What the old rule was really guarding against still is refused: a config
+// that watches nothing at all.
+func TestAConfigThatWatchesNothingIsRefused(t *testing.T) {
+	c, err := loadYAML(t, "dry_run: true\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	u := usable(c)
+	u.Paths.ChatScript = ""
+	err = u.Validate()
+	if err == nil {
+		t.Fatal("a config with no sources and no space must be refused")
+	}
+	if !strings.Contains(err.Error(), "nothing to watch") {
 		t.Errorf("the error must say what is missing: %v", err)
+	}
+}
+
+// chat_script is required only when there is a space to read with it. A
+// GitHub-only box has no use for it, and demanding it would make the simplest
+// useful configuration impossible to express.
+func TestChatScriptIsRequiredOnlyWithASpace(t *testing.T) {
+	withSpace, err := loadYAML(t, "space: \"spaces/x\"\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	u := usable(withSpace)
+	u.Paths.ChatScript = ""
+	if err := u.Validate(); err == nil {
+		t.Error("a configured space with no script to read it must be refused")
 	}
 }
 

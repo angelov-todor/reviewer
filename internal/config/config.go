@@ -295,12 +295,21 @@ func LoadLenient(path string) (Config, []string, error) {
 
 // Validate rejects configurations that would be unsafe or useless to run.
 func (c Config) Validate() error {
-	// Required however it is written. This is what stops a config from
-	// turning the chat space off by omission: deleting the chat source is an
-	// error rather than a quieter service.
-	if c.Space == "" {
-		return errors.New("a chat space is required: add a source of type \"chat\" with its " +
-			"\"space\", or set the top-level \"space\" key (see config.yaml.example)")
+	// Something to watch is required; a chat space in particular is not.
+	//
+	// The rule used to be that a chat space was mandatory, which was right
+	// when chat was the only way a pull request could be found: a config with
+	// no space was a service that would never do anything, and silence is the
+	// worst way to learn that. A GitHub source is now equally a complete
+	// configuration, and on a Linux service box it is the whole of it -- chat
+	// costs a Python dependency and a browser-based login that a headless
+	// machine cannot perform.
+	//
+	// What is still refused is a config that watches nothing at all, which is
+	// the mistake the old rule was really guarding against.
+	if c.Space == "" && !c.hasGitHubSource() {
+		return errors.New("nothing to watch: add a source of type \"github\", or a source of " +
+			"type \"chat\" with its \"space\" (see config.yaml.example)")
 	}
 	if c.GithubLogin == "" {
 		return errors.New("github_login is required: without it the service would review your own PRs; " +
@@ -310,9 +319,12 @@ func (c Config) Validate() error {
 		return errors.New("allow_owners must not be empty: an empty list would permit review comments " +
 			"on any org's PRs; set \"allow_owners\" in your config file (see config.yaml.example)")
 	}
-	if c.Paths.ChatScript == "" {
-		return errors.New("paths.chat_script is required: it must point at a script that can read your " +
-			"Google Chat space (see config.yaml.example)")
+	// Only when there is a space to read. A GitHub-only installation has no
+	// use for it, and demanding it would make the simplest useful
+	// configuration impossible to express.
+	if c.Space != "" && c.Paths.ChatScript == "" {
+		return errors.New("paths.chat_script is required when a chat space is configured: it must " +
+			"point at a script that can read that space (see config.yaml.example)")
 	}
 	if c.MaxReviewsPerSweep <= 0 {
 		return errors.New("max_reviews_per_sweep must be positive")
@@ -491,4 +503,20 @@ func (s Source) validate(i int, c Config) error {
 // been about to review.
 func (s Source) ID(githubLogin string) string {
 	return s.Type + ":" + strings.ToLower(s.Owner) + ":" + strings.ToLower(s.Login(githubLogin))
+}
+
+// ChatConfigured reports whether this installation watches a chat space.
+//
+// Read by everything that would otherwise assume one: the pipeline skips the
+// fetch and the watermark, doctor skips the two checks about a script that is
+// not there, and the daemon does not build a chat client it will never call.
+func (c Config) ChatConfigured() bool { return c.Space != "" }
+
+func (c Config) hasGitHubSource() bool {
+	for _, s := range c.Sources {
+		if s.Type == SourceGitHub {
+			return true
+		}
+	}
+	return false
 }
