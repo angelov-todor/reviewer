@@ -268,9 +268,9 @@ func (rr *Runner) Prompt(ref prref.PRRef, previous *PreviousPass) string {
 		"whichever installed review skills apply to this repository." +
 		findingFormat
 	if rr.dryRun {
-		p += dryRunPostingClause
+		p += dryRunPostingClause + dryRunCoverageClause
 	} else {
-		p += livePostingClause
+		p += livePostingClause + coverageClause
 	}
 	// Only when that pass actually posted. An earlier pass whose findings went
 	// to a dry-run report left nothing on the pull request, so there is no

@@ -137,3 +137,67 @@ func TestTheCompareNamesThePullRequestNotTheDefaultBranch(t *testing.T) {
 		t.Error("`...HEAD` compares against the default branch, not the pull request")
 	}
 }
+
+// TestAnApprovalCannotOutrunWhatWasRead is the colleague's criticism, made
+// into a requirement.
+//
+// A real review on a 38-file change said "I did not read the PDF/sample
+// layout code or the test files in depth" and then submitted APPROVED. The
+// service may turn that into an approving GitHub review that satisfies
+// somebody's merge requirement, so it is a claim about the whole change --
+// and a review cannot both admit it skipped part of the change and approve
+// it.
+func TestAnApprovalCannotOutrunWhatWasRead(t *testing.T) {
+	live := New(nil, "claude", nil, false, t.TempDir()).Prompt(ref, nil)
+	dry := New(nil, "claude", nil, true, t.TempDir()).Prompt(ref, nil)
+
+	for mode, p := range map[string]string{"live": live, "dry run": dry} {
+		for _, frag := range []string{
+			// Scoped to the pass, and that is the point. An earlier wording
+			// said "read everything in this change", which contradicted the
+			// increment instruction added hours before: a later pass would
+			// have been told both to review only the increment and to read
+			// the whole change again.
+			"the whole change on a first pass, the whole increment on a later one",
+			"print `findings` instead", // what to do when part was skipped
+			"name what you skipped",    // and say which part
+			"merge requirement",        // why an approval is a claim
+		} {
+			if !strings.Contains(p, frag) {
+				t.Errorf("%s prompt must carry %q", mode, frag)
+			}
+		}
+	}
+}
+
+// TestEveryReviewSaysWhatItExamined is the other half: silence read as
+// thoroughness.
+//
+// The approving review body is one lean sentence, and the findings live in a
+// separate comment. On a two-file documentation change the reviewer posted no
+// comment at all, so the entire visible artefact was "No findings needing a
+// change." From the Reviews tab that is indistinguishable from not having
+// looked, and a reader is entitled to the worse reading.
+func TestEveryReviewSaysWhatItExamined(t *testing.T) {
+	live := New(nil, "claude", nil, false, t.TempDir()).Prompt(ref, nil)
+
+	// A comment is required even on a clean review, and it has to open with
+	// the coverage statement.
+	for _, frag := range []string{"even if you found nothing", "naming what you examined",
+		"indistinguishable from"} {
+		if !strings.Contains(live, frag) {
+			t.Errorf("the live prompt must carry %q", frag)
+		}
+	}
+
+	// A dry run must NOT be asked to post, or it contradicts the prohibition
+	// it is given in the same prompt -- and a contradiction is how a dry run
+	// ends up posting on a colleague's pull request.
+	dry := New(nil, "claude", nil, true, t.TempDir()).Prompt(ref, nil)
+	if strings.Contains(dry, "post ONE comment") {
+		t.Error("a dry run must not be told to post a comment")
+	}
+	if !strings.Contains(dry, "naming what you examined") {
+		t.Error("a dry run must still state its coverage, so its verdict means the same thing")
+	}
+}

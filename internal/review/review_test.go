@@ -71,8 +71,20 @@ func TestDryRunAndLivePromptsDifferOnlyInWhetherTheyPost(t *testing.T) {
 	dry := New(&runner.Fake{}, "claude", nil, true, t.TempDir()).Prompt(ref, nil)
 	live := New(&runner.Fake{}, "claude", nil, false, t.TempDir()).Prompt(ref, nil)
 
-	if strings.Replace(dry, dryRunPostingClause, livePostingClause, 1) != live {
-		t.Errorf("the prompts differ by more than the posting instruction:\ndry:  %q\nlive: %q",
+	// Two substitutions now, not one. The coverage requirement is also
+	// mode-specific, and necessarily so: the live run is told to post a
+	// comment even when it found nothing, and a dry run is forbidden to post
+	// anything at all. Asking a dry run for a comment would contradict the
+	// prohibition it is given two paragraphs earlier, and a contradiction is
+	// how a dry run ends up posting.
+	//
+	// The invariant itself is unchanged and is the point of the test: the two
+	// modes ask the same review question, and differ only in what they are
+	// allowed to write to GitHub.
+	normalised := strings.Replace(dry, dryRunPostingClause, livePostingClause, 1)
+	normalised = strings.Replace(normalised, dryRunCoverageClause, coverageClause, 1)
+	if normalised != live {
+		t.Errorf("the prompts differ by more than what they may post:\ndry:  %q\nlive: %q",
 			dry, live)
 	}
 }
