@@ -26,6 +26,15 @@ package review
 // required even when nothing was found, and it has to open by naming what was
 // examined.
 //
+// The coverage demand is scoped to what the pass was asked to cover, and that
+// wording is load-bearing rather than fussy. An earlier version of this file
+// said "read everything in this change", which contradicted the increment
+// instruction added hours before it: a later pass is told to review the
+// increment and not to restate the earlier pass's findings, so a demand to
+// read the whole change again would have undone that and re-read every file on
+// every push. The approving review body already states what a later pass
+// covered, so the two now agree.
+//
 // Both demands live in the -p value with the other instructions, for the
 // reason this package has already paid to learn: an instruction in an appended
 // system prompt is not reliably followed over a long agentic run.
@@ -33,12 +42,13 @@ const coverageClause = "\n\nBefore the verdict line, post ONE comment on the pul
 	"if you found nothing at all, and open it with a sentence naming what you examined and " +
 	"anything you deliberately did not. An approval with no comment is indistinguishable from " +
 	"not having looked, and a reader is entitled to the worse reading." +
-	"\n\nAnd read everything in this change that could alter behaviour before you print " +
-	"`approve`. If you deliberately skipped part of it -- anything beyond generated files, lock " +
-	"files and fixtures -- print `findings` instead and name what you skipped. The service may " +
+	"\n\nAnd read all of what you are reviewing before you print `approve` -- the whole change " +
+	"on a first pass, the whole increment on a later one. If you deliberately skipped part of " +
+	"it, anything beyond generated files, lock files and fixtures, print `findings` instead and " +
+	"name what you skipped. The service may " +
 	"turn `approve` into an approving GitHub review that satisfies somebody's merge " +
-	"requirement, so it has to be a claim about the whole change. Saying you did not read part " +
-	"of it and approving it anyway are not both available."
+	"requirement, so it has to be a claim about everything this pass was asked to cover. Saying " +
+	"you did not read part of it and approving it anyway are not both available."
 
 // dryRunCoverageClause is the same requirement for a run that posts nothing.
 //
@@ -49,9 +59,10 @@ const coverageClause = "\n\nBefore the verdict line, post ONE comment on the pul
 // contradiction is how a dry run ends up posting.
 const dryRunCoverageClause = "\n\nOpen your output with a sentence naming what you examined and " +
 	"anything you deliberately did not examine." +
-	"\n\nAnd read everything in this change that could alter behaviour before you print " +
-	"`approve`. If you deliberately skipped part of it -- anything beyond generated files, lock " +
-	"files and fixtures -- print `findings` instead and name what you skipped. In a live run the " +
+	"\n\nAnd read all of what you are reviewing before you print `approve` -- the whole change " +
+	"on a first pass, the whole increment on a later one. If you deliberately skipped part of " +
+	"it, anything beyond generated files, lock files and fixtures, print `findings` instead and " +
+	"name what you skipped. In a live run the " +
 	"service may turn `approve` into an approving GitHub review that satisfies somebody's merge " +
 	"requirement, and this run is asked the same question so that its answer means the same " +
 	"thing."

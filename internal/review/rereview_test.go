@@ -153,10 +153,15 @@ func TestAnApprovalCannotOutrunWhatWasRead(t *testing.T) {
 
 	for mode, p := range map[string]string{"live": live, "dry run": dry} {
 		for _, frag := range []string{
-			"could alter behaviour",    // what must be read
-			"print `findings` instead", // what to do when it was not
-			"name what you skipped",    // and say so
-			"merge requirement",        // why it matters
+			// Scoped to the pass, and that is the point. An earlier wording
+			// said "read everything in this change", which contradicted the
+			// increment instruction added hours before: a later pass would
+			// have been told both to review only the increment and to read
+			// the whole change again.
+			"the whole change on a first pass, the whole increment on a later one",
+			"print `findings` instead", // what to do when part was skipped
+			"name what you skipped",    // and say which part
+			"merge requirement",        // why an approval is a claim
 		} {
 			if !strings.Contains(p, frag) {
 				t.Errorf("%s prompt must carry %q", mode, frag)
